@@ -1,0 +1,18 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: altc-agent
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: altc-agent
+  template:
+    metadata:
+      labels:
+        app: altc-agent
+    spec:
+      containers:
+        - name: altc-agent
+          image: docker.io/russnicolettidocker/altc-agent-linux:latest
+          imagePullPolicy: Always

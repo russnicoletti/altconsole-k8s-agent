@@ -25,6 +25,10 @@ func NewHandler() Handler {
 }
 
 func (h *handler) OnAdd(obj interface{}) {
+	// Log name and type of resource
+	// (The second field of all the Kubernetes objects (at least all
+	// that we are interested in) is 'ObjectMeta' (which includes
+	// the name of the object)
 	fmt.Println(fmt.Sprintf("%s %s was created",
 		reflect.ValueOf(obj).Elem().Field(1).Interface().(v1.ObjectMeta).Name,
 		reflect.TypeOf(obj)))
@@ -54,7 +58,7 @@ func (h *handler) handle(obj interface{}) {
 	if err != nil {
 		panic(fmt.Sprintf("error marshalling %s: %v", reflect.TypeOf(obj), err))
 	}
-	fmt.Println("***** begin object *****")
+	fmt.Println()
 	fmt.Println(string(b))
-	fmt.Println("***** end object *****")
+	fmt.Println()
 }

@@ -8,7 +8,7 @@ import (
 )
 
 type Controller struct {
-	custominformers [2]*custominformers.Informer
+	custominformers []*custominformers.Informer
 	factory         informers.SharedInformerFactory
 }
 
@@ -21,7 +21,7 @@ func New(clientset *kubernetes.Clientset) *Controller {
 	//  There are situations where events can be missed entirely and resyncing every so often solves this.
 	//  Setting to 0 disables resync.
 	f := informers.NewSharedInformerFactory(clientset, 0)
-	altcinformers := [...]*custominformers.Informer{
+	altcinformers := []*custominformers.Informer{
 		custominformers.New(f.Core().V1().Nodes().Informer()),
 		custominformers.New(f.Core().V1().Pods().Informer()),
 	}

@@ -4,6 +4,7 @@
 *.dll
 *.so
 *.dylib
+k8s-agent/altc-agent-linux
 
 # Test binary, built with `go test -c`
 *.test

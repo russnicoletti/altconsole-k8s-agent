@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"os"
 	"sigs.k8s.io/controller-runtime/pkg/manager/signals"
 )
 
@@ -23,6 +24,9 @@ func main() {
 
 	stopCh := make(chan struct{})
 	defer close(stopCh)
+
+	clusterName := os.Getenv("CLUSTER_NAME")
+	fmt.Println(fmt.Sprintf("cluster name: '%s'", clusterName))
 
 	controller := customcontrollers.New(clientset)
 	controller.Run(stopCh)

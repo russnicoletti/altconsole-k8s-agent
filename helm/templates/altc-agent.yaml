@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: altc-agent
 spec:
-  replicas: {{ .Values.replicaCount }}
+  replicas: 1
   selector:
     matchLabels:
       app: altc-agent
@@ -16,9 +16,6 @@ spec:
         - name: altc-agent
           image: docker.io/russnicolettidocker/altc-agent-linux:latest
           imagePullPolicy: Always
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: {{ .Values.serviceAccount.name }}
-
+          envFrom:
+            - configMapRef:
+               name: altc-agent-config-map

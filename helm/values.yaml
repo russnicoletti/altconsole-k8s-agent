@@ -1,4 +1,0 @@
-replicaCount: 1
-
-serviceAccount:
-  name: "altc-agent-service"

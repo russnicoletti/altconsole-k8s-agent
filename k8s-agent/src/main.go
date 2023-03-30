@@ -26,9 +26,8 @@ func main() {
 	defer close(stopCh)
 
 	clusterName := os.Getenv("CLUSTER_NAME")
-	fmt.Println(fmt.Sprintf("cluster name: '%s'", clusterName))
 
-	controller := customcontrollers.New(clientset)
+	controller := customcontrollers.New(clientset, clusterName)
 	controller.Run(stopCh)
 
 	ctx := signals.SetupSignalHandler()

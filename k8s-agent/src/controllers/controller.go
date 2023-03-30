@@ -10,9 +10,10 @@ import (
 type Controller struct {
 	custominformers []*custominformers.Informer
 	factory         informers.SharedInformerFactory
+	clusterName     string
 }
 
-func New(clientset *kubernetes.Clientset) *Controller {
+func New(clientset *kubernetes.Clientset, clusterName string) *Controller {
 	// Documentation
 	//  The second argument is how often this informer should perform a resync.
 	//  What this means is it will list all resources and rehydrate the informer's store.
@@ -30,10 +31,14 @@ func New(clientset *kubernetes.Clientset) *Controller {
 	return &Controller{
 		custominformers: altcinformers,
 		factory:         f,
+		clusterName:     clusterName,
 	}
 }
 
 func (c *Controller) Run(stopCh <-chan struct{}) {
-	fmt.Println("Controller, running...")
+	fmt.Println("****")
+	fmt.Println("controller running")
+	fmt.Println(fmt.Sprintf("cluster name: %s", c.clusterName))
+	fmt.Println("****")
 	c.factory.Start(stopCh) // runs in background
 }

@@ -55,7 +55,7 @@ Create the name of the service account to use
 */}}
 {{- define "altc-chart.serviceAccountName" -}}
 {{- if .Values.serviceAccount.create }}
-{{- default (include "altc-chart.fullname" .) .Values.serviceAccount.name }}
+{{- default (include "altc-chart.name" .) .Values.serviceAccount.name }}
 {{- else }}
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}

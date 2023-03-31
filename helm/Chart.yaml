@@ -1,4 +1,0 @@
-apiVersion: v1
-description: altc kubernetes agent
-name: altc-k8s-agent
-version: 0.0.1

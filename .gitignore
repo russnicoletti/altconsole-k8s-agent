@@ -4,7 +4,9 @@
 *.dll
 *.so
 *.dylib
+*.tgz
 k8s-agent/altc-agent-linux
+altc-helm/index.yaml
 
 # Test binary, built with `go test -c`
 *.test
@@ -15,4 +17,4 @@ k8s-agent/altc-agent-linux
 # Dependency directories (remove the comment below to include it)
 # vendor/
 .idea
-.gitignore
+.helmignore

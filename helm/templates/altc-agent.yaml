@@ -19,3 +19,9 @@ spec:
           envFrom:
             - configMapRef:
                name: altc-agent
+      serviceAccountName: altc-agent
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: altc-agent

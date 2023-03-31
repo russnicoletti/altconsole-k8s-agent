@@ -32,5 +32,5 @@ roleRef:
   name: in-cluster-agent-poc-cluster-role
 subjects:
   - kind: ServiceAccount
-    name: default
+    name: altc-agent
     namespace: default

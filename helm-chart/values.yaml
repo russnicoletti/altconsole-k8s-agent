@@ -6,7 +6,7 @@ replicaCount: 1
 
 image:
   repository: docker.io/russnicolettidocker/altc-agent-linux
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
   # Overrides the image tag whose default is the chart appVersion.
   tag: "latest"
 

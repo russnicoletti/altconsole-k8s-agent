@@ -17,7 +17,7 @@ echo ""
 echo "installing agent..."
 helm list | grep altc-chart > /dev/null 2>&1
 if [ "$?" -eq "0" ]; then
-  helm upgrade altc-chart altc-helm-repo/altc-agent
+  helm upgrade altc-chart altc-helm/altc-agent
 else
-  helm install altc-chart .
+  helm install altc-chart altc-helm/altc-agent
 fi

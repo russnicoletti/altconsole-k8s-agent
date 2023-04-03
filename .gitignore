@@ -5,8 +5,7 @@
 *.so
 *.dylib
 *.tgz
-k8s-agent/altc-agent-linux
-altc-helm/index.yaml
+altc-agent-linux
 
 # Test binary, built with `go test -c`
 *.test

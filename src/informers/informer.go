@@ -10,8 +10,8 @@ type Informer struct {
 	handler  handlers.Handler
 }
 
-func New(informer cache.SharedInformer) *Informer {
-	handler := handlers.NewHandler()
+func New(informer cache.SharedInformer, clusterName string) *Informer {
+	handler := handlers.NewHandler(clusterName)
 	informer.AddEventHandler(handler)
 
 	return &Informer{

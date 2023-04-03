@@ -24,8 +24,8 @@ func New(clientset *kubernetes.Clientset, clusterName string) *Controller {
 	f := informers.NewSharedInformerFactory(clientset, 0)
 	//goland:noinspection SpellCheckingInspection
 	altcinformers := []*custominformers.Informer{
-		custominformers.New(f.Core().V1().Nodes().Informer()),
-		custominformers.New(f.Core().V1().Pods().Informer()),
+		custominformers.New(f.Core().V1().Nodes().Informer(), clusterName),
+		custominformers.New(f.Core().V1().Pods().Informer(), clusterName),
 	}
 
 	return &Controller{

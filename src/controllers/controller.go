@@ -73,26 +73,13 @@ func (c *Controller) processQueue() {
 			fmt.Println(fmt.Sprintf("Expected queue item to be %T, got %T", &altc.ClusterResourceQueueItem{}, item))
 		}
 
-		resourcePayloadJson, err := json.Marshal(clusterResourceQueueItem.Payload)
-		if err != nil {
-			fmt.Println("ERROR: error marshalling clusterResourceQueueItem.Payload:", err)
-			continue
-		}
-
-		clusterResourceItem := altc.ClusterResourceItem{
-			ClusterName:  c.clusterName,
-			Action:       clusterResourceQueueItem.Action,
-			ResourceType: clusterResourceQueueItem.ResourceType,
-			Payload:      string(resourcePayloadJson),
-		}
-
-		clusterResourceItemJson, err := json.Marshal(clusterResourceItem)
+		clusterResourceQueueItemJson, err := json.Marshal(clusterResourceQueueItem)
 		if err != nil {
 			fmt.Println("ERROR: error marshalling clusterResourceItem:", err)
 			continue
 		}
 
-		fmt.Println(string(clusterResourceItemJson))
+		fmt.Println(string(clusterResourceQueueItemJson))
 		c.queue.Done(item)
 	}
 }

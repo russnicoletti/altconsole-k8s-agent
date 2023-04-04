@@ -1,5 +1,10 @@
 package altc
 
+import (
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+)
+
 type Action string
 
 const (
@@ -10,9 +15,21 @@ const (
 
 type ResourceType string
 
-type ClusterResource struct {
+type ResourceObject interface {
+	runtime.Object
+	metav1.Object
+}
+
+type ClusterResourceQueueItem struct {
+	ClusterName  string
+	Action       Action
+	ResourceType string
+	Payload      ResourceObject
+}
+
+type ClusterResourceItem struct {
 	ClusterName  string `json:"clusterName"`
-	Action       Action `"json:action"`
+	Action       Action `json:"action"`
 	ResourceType string `json:"resourceType"`
 	Payload      string `json:"payload"`
 }

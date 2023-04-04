@@ -1,16 +1,21 @@
 package controllers
 
 import (
+	"altc-agent/altc"
 	custominformers "altc-agent/informers"
+	"context"
 	"fmt"
+	"k8s.io/apimachinery/pkg/util/json"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/util/workqueue"
 )
 
 type Controller struct {
 	custominformers []*custominformers.Informer
 	informerFactory informers.SharedInformerFactory
 	clusterName     string
+	queue           workqueue.Interface
 }
 
 func New(clientset *kubernetes.Clientset, clusterName string) *Controller {
@@ -23,23 +28,71 @@ func New(clientset *kubernetes.Clientset, clusterName string) *Controller {
 	//  Setting to 0 disables resync.
 	f := informers.NewSharedInformerFactory(clientset, 0)
 	//goland:noinspection SpellCheckingInspection
+	queue := workqueue.NewNamed("altc-queue")
 	altcinformers := []*custominformers.Informer{
-		custominformers.New(f.Core().V1().Nodes().Informer(), clusterName),
-		custominformers.New(f.Core().V1().Pods().Informer(), clusterName),
+		custominformers.New(f.Core().V1().Nodes().Informer(), clusterName, queue),
+		custominformers.New(f.Core().V1().Pods().Informer(), clusterName, queue),
 	}
 
 	return &Controller{
 		custominformers: altcinformers,
 		informerFactory: f,
 		clusterName:     clusterName,
+		queue:           queue,
 	}
 }
 
-func (c *Controller) Run(stopCh <-chan struct{}) {
+func (c *Controller) Run(stopCh <-chan struct{}, ctx context.Context) {
 	fmt.Println("****")
 	fmt.Println("controller running")
 	fmt.Println(fmt.Sprintf("cluster name: %s", c.clusterName))
 	fmt.Println("starting informers...")
-	fmt.Println("****")
 	c.informerFactory.Start(stopCh) // runs in background
+
+	fmt.Println("processing queue...")
+	fmt.Println("****")
+
+	go func() {
+		<-ctx.Done()
+		c.queue.ShutDown()
+	}()
+
+	c.processQueue()
+}
+
+func (c *Controller) processQueue() {
+	for {
+		item, shutdown := c.queue.Get()
+		fmt.Println("processing queue item...")
+		if shutdown {
+			return
+		}
+
+		clusterResourceQueueItem, ok := item.(*altc.ClusterResourceQueueItem)
+		if !ok {
+			fmt.Println(fmt.Sprintf("Expected queue item to be %T, got %T", &altc.ClusterResourceQueueItem{}, item))
+		}
+
+		resourcePayloadJson, err := json.Marshal(clusterResourceQueueItem.Payload)
+		if err != nil {
+			fmt.Println("ERROR: error marshalling clusterResourceQueueItem.Payload:", err)
+			continue
+		}
+
+		clusterResourceItem := altc.ClusterResourceItem{
+			ClusterName:  c.clusterName,
+			Action:       clusterResourceQueueItem.Action,
+			ResourceType: clusterResourceQueueItem.ResourceType,
+			Payload:      string(resourcePayloadJson),
+		}
+
+		clusterResourceItemJson, err := json.Marshal(clusterResourceItem)
+		if err != nil {
+			fmt.Println("ERROR: error marshalling clusterResourceItem:", err)
+			continue
+		}
+
+		fmt.Println(string(clusterResourceItemJson))
+		c.queue.Done(item)
+	}
 }

@@ -7,7 +7,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"os"
-	"sigs.k8s.io/controller-runtime/pkg/manager/signals"
 )
 
 func main() {
@@ -27,10 +26,12 @@ func main() {
 
 	clusterName := os.Getenv("CLUSTER_NAME")
 
-	controller := customcontrollers.New(clientset, clusterName)
-	controller.Run(stopCh)
+	ctx, cancelCtx := context.WithCancel(context.Background())
+	defer cancelCtx()
 
-	ctx := signals.SetupSignalHandler()
+	controller := customcontrollers.New(clientset, clusterName)
+	controller.Run(stopCh, ctx)
+
 	err = run(ctx)
 	fmt.Println("agent ending with", err)
 }

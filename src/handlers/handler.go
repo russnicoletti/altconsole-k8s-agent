@@ -3,13 +3,14 @@ package handlers
 import (
 	"altc-agent/altc"
 	"fmt"
-	"k8s.io/apimachinery/pkg/util/json"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/util/workqueue"
 	"reflect"
 )
 
 type handler struct {
 	clusterName string
+	queue       workqueue.Interface
 }
 
 type Handler interface {
@@ -20,9 +21,10 @@ type HasName interface {
 	Name() string
 }
 
-func NewHandler(clusterName string) Handler {
+func NewHandler(clusterName string, queue workqueue.Interface) Handler {
 	return &handler{
 		clusterName: clusterName,
+		queue:       queue,
 	}
 }
 
@@ -31,10 +33,6 @@ func (h *handler) OnAdd(obj interface{}) {
 }
 
 func (h *handler) OnUpdate(oldObj, newObj interface{}) {
-	fmt.Println("old object")
-	h.handle(altc.Update, oldObj)
-
-	fmt.Println("new object")
 	h.handle(altc.Update, newObj)
 }
 
@@ -43,22 +41,17 @@ func (h *handler) OnDelete(obj interface{}) {
 }
 
 func (h *handler) handle(action altc.Action, obj interface{}) {
-	resourceJson, err := json.Marshal(obj)
-	if err != nil {
-		panic(fmt.Sprintf("error marshalling %s: %v", reflect.TypeOf(obj), err))
+	resourceObject, ok := obj.(altc.ResourceObject)
+	if !ok {
+		fmt.Println("'obj' is not an altc.ResourceObject")
 	}
-	clusterResource := altc.ClusterResource{
+
+	clusterResourceQueueItem := &altc.ClusterResourceQueueItem{
 		ClusterName:  h.clusterName,
 		Action:       action,
 		ResourceType: reflect.TypeOf(obj).Elem().Name(),
-		Payload:      string(resourceJson),
+		Payload:      resourceObject,
 	}
 
-	clusterResourceJson, err := json.Marshal(clusterResource)
-	if err != nil {
-		panic(fmt.Sprintf("error marshalling clusterResourceObj: %v", err))
-	}
-	fmt.Println()
-	fmt.Println(string(clusterResourceJson))
-	fmt.Println()
+	h.queue.Add(clusterResourceQueueItem)
 }

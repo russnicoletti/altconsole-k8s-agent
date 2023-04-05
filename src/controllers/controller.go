@@ -4,6 +4,7 @@ import (
 	"altc-agent/altc"
 	custominformers "altc-agent/informers"
 	"context"
+	"errors"
 	"fmt"
 	"k8s.io/apimachinery/pkg/util/json"
 	"k8s.io/client-go/informers"
@@ -47,10 +48,8 @@ func (c *Controller) Run(stopCh <-chan struct{}, ctx context.Context) {
 	fmt.Println("controller running")
 	fmt.Println(fmt.Sprintf("cluster name: %s", c.clusterName))
 	fmt.Println("starting informers...")
-	c.informerFactory.Start(stopCh) // runs in background
-
-	fmt.Println("processing queue...")
 	fmt.Println("****")
+	c.informerFactory.Start(stopCh) // runs in background
 
 	go func() {
 		<-ctx.Done()
@@ -63,23 +62,37 @@ func (c *Controller) Run(stopCh <-chan struct{}, ctx context.Context) {
 func (c *Controller) processQueue() {
 	for {
 		item, shutdown := c.queue.Get()
-		fmt.Println("processing queue item...")
 		if shutdown {
 			return
 		}
 
-		clusterResourceQueueItem, ok := item.(*altc.ClusterResourceQueueItem)
-		if !ok {
-			fmt.Println(fmt.Sprintf("Expected queue item to be %T, got %T", &altc.ClusterResourceQueueItem{}, item))
-		}
-
-		clusterResourceQueueItemJson, err := json.Marshal(clusterResourceQueueItem)
-		if err != nil {
-			fmt.Println("ERROR: error marshalling clusterResourceItem:", err)
+		if err := c.processQueueItem(item); err != nil {
+			fmt.Println(err.Error())
 			continue
 		}
-
-		fmt.Println(string(clusterResourceQueueItemJson))
-		c.queue.Done(item)
 	}
+}
+
+func (c *Controller) processQueueItem(item interface{}) error {
+	// TODO Update the following line when the code is added to send the resource item to the server.
+	// When the code is added to send the resource item to the server, the 'queue.Done' call
+	// should not be invoked via a defer statement because we don't want to remove the item
+	// from the queue when the server is unreachable (that is the point of having a queue).
+	defer c.queue.Done(item)
+
+	fmt.Println()
+	fmt.Println("processing queue item...")
+	clusterResourceQueueItem, ok := item.(*altc.ClusterResourceQueueItem)
+	if !ok {
+		return errors.New(fmt.Sprintf("ERROR: Expected queue item to be %T, got %T", &altc.ClusterResourceQueueItem{}, item))
+	}
+
+	clusterResourceQueueItemJson, err := json.Marshal(clusterResourceQueueItem)
+	if err != nil {
+		return errors.New(fmt.Sprintf("ERROR: error marshalling clusterResourceItem: %s", err))
+	}
+
+	fmt.Println(string(clusterResourceQueueItemJson))
+
+	return nil
 }

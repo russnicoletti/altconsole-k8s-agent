@@ -21,15 +21,8 @@ type ResourceObject interface {
 }
 
 type ClusterResourceQueueItem struct {
-	ClusterName  string
-	Action       Action
-	ResourceType string
-	Payload      ResourceObject
-}
-
-type ClusterResourceItem struct {
-	ClusterName  string `json:"clusterName"`
-	Action       Action `json:"action"`
-	ResourceType string `json:"resourceType"`
-	Payload      string `json:"payload"`
+	ClusterName string         `json:"clusterName"`
+	Action      Action         `json:"action"`
+	Kind        string         `json:"kind"`
+	Payload     ResourceObject `json:"payload"`
 }

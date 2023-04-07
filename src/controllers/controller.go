@@ -3,13 +3,13 @@ package controllers
 import (
 	"altc-agent/altc"
 	custominformers "altc-agent/informers"
+	altcqueues "altc-agent/queues"
 	"context"
 	"errors"
 	"fmt"
 	"k8s.io/apimachinery/pkg/util/json"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/util/workqueue"
 	"time"
 )
@@ -17,7 +17,7 @@ import (
 type Controller struct {
 	custominformers  []*custominformers.Informer
 	informerFactory  informers.SharedInformerFactory
-	resourceQ        workqueue.Interface
+	resourceQ        altcqueues.ResourceObjectQ
 	clusterResources altc.ClusterResources
 }
 
@@ -31,7 +31,7 @@ func New(clientset *kubernetes.Clientset, clusterName string) *Controller {
 	//  Setting to 0 disables resync.
 	f := informers.NewSharedInformerFactory(clientset, 0)
 	//goland:noinspection SpellCheckingInspection
-	resourceQ := workqueue.NewNamed("altc-resourceQ")
+	resourceQ := altcqueues.NewResourceObjectQ()
 	custominformers := []*custominformers.Informer{
 		custominformers.New(f.Core().V1().Nodes().Informer(), resourceQ),
 		custominformers.New(f.Core().V1().Pods().Informer(), resourceQ),
@@ -107,6 +107,17 @@ func (c *Controller) processQueue() {
 	}
 }
 
+func AddResourceToQ(action altc.Action, resourceObject altc.ResourceObject, resourceObjQ workqueue.Interface) {
+
+	clusterResourceItem, err := altc.NewClusterResourceItem(action, resourceObject)
+	if err != nil {
+		fmt.Println(fmt.Sprintf("ERROR: unable to create %T: %s", altc.ClusterResourceItem{}, err))
+		return
+	}
+
+	resourceObjQ.Add(clusterResourceItem)
+}
+
 func (c *Controller) processQueueItem(item interface{}) error {
 	// TODO Update the following line when the code is added to send the resource item to the server.
 	// When the code is added to send the resource item to the server, the 'resourceQ.Done' call
@@ -116,24 +127,25 @@ func (c *Controller) processQueueItem(item interface{}) error {
 	// sent to the server.
 	defer c.resourceQ.Done(item)
 
-	clusterResourceQueueItem, ok := item.(*altc.ClusterResourceQueueItem)
+	clusterResourceItem, ok := item.(*altc.ClusterResourceItem)
 	if !ok {
 		return errors.New(fmt.Sprintf("ERROR: Expected resourceQ item to be %T, got %T", &altc.ClusterResourceQueueItem{}, item))
 	}
+	/*
+		kinds, _, err := scheme.Scheme.ObjectKinds(clusterResourceQueueItem.Payload)
+		if err != nil {
+			return errors.New(fmt.Sprintf("failed to find Object %T kind: %v", clusterResourceQueueItem.Payload, err))
+		}
+		if len(kinds) == 0 || kinds[0].Kind == "" {
+			return errors.New(fmt.Sprintf("unknown Object kind for Object %T", clusterResourceQueueItem.Payload))
+		}
 
-	kinds, _, err := scheme.Scheme.ObjectKinds(clusterResourceQueueItem.Payload)
-	if err != nil {
-		return errors.New(fmt.Sprintf("failed to find Object %T kind: %v", clusterResourceQueueItem.Payload, err))
-	}
-	if len(kinds) == 0 || kinds[0].Kind == "" {
-		return errors.New(fmt.Sprintf("unknown Object kind for Object %T", clusterResourceQueueItem.Payload))
-	}
-
-	clusterResourceItem := &altc.ClusterResourceItem{
-		Action:  clusterResourceQueueItem.Action,
-		Kind:    kinds[0].Kind,
-		Payload: clusterResourceQueueItem.Payload,
-	}
+		clusterResourceItem := &altc.ClusterResourceItem{
+			Action:  clusterResourceQueueItem.Action,
+			Kind:    kinds[0].Kind,
+			Payload: clusterResourceQueueItem.Payload,
+		}
+	*/
 	c.clusterResources.Data = append(c.clusterResources.Data, clusterResourceItem)
 	fmt.Println(fmt.Sprintf("cluster resources data items added: %d", len(c.clusterResources.Data)))
 	return nil

@@ -2,13 +2,13 @@ package handlers
 
 import (
 	"altc-agent/altc"
+	altcqueues "altc-agent/queues"
 	"fmt"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/util/workqueue"
 )
 
 type handler struct {
-	queue workqueue.Interface
+	queue altcqueues.ResourceObjectQ
 }
 
 type Handler interface {
@@ -19,7 +19,7 @@ type HasName interface {
 	Name() string
 }
 
-func NewHandler(queue workqueue.Interface) Handler {
+func NewHandler(queue altcqueues.ResourceObjectQ) Handler {
 	return &handler{
 		queue: queue,
 	}
@@ -44,10 +44,8 @@ func (h *handler) handle(action altc.Action, obj interface{}) {
 		return
 	}
 
-	clusterResourceQueueItem := &altc.ClusterResourceQueueItem{
-		Action:  action,
-		Payload: resourceObject,
+	err := h.queue.AddItem(action, resourceObject)
+	if err != nil {
+		fmt.Println(err.Error())
 	}
-
-	h.queue.Add(clusterResourceQueueItem)
 }

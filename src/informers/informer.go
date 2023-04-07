@@ -2,8 +2,8 @@ package informers
 
 import (
 	"altc-agent/handlers"
+	altcqueues "altc-agent/queues"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/util/workqueue"
 )
 
 type Informer struct {
@@ -11,8 +11,8 @@ type Informer struct {
 	handler  handlers.Handler
 }
 
-func New(informer cache.SharedInformer, queue workqueue.Interface) *Informer {
-	handler := handlers.NewHandler(queue)
+func New(informer cache.SharedInformer, resourceObjectQ altcqueues.ResourceObjectQ) *Informer {
+	handler := handlers.NewHandler(resourceObjectQ)
 	informer.AddEventHandler(handler)
 
 	return &Informer{

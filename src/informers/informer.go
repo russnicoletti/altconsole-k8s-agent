@@ -11,8 +11,8 @@ type Informer struct {
 	handler  handlers.Handler
 }
 
-func New(informer cache.SharedInformer, clusterName string, queue workqueue.Interface) *Informer {
-	handler := handlers.NewHandler(clusterName, queue)
+func New(informer cache.SharedInformer, queue workqueue.Interface) *Informer {
+	handler := handlers.NewHandler(queue)
 	informer.AddEventHandler(handler)
 
 	return &Informer{

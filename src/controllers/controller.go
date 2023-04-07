@@ -17,8 +17,7 @@ import (
 type Controller struct {
 	custominformers  []*custominformers.Informer
 	informerFactory  informers.SharedInformerFactory
-	clusterName      string // TODO Remove this?
-	queue            workqueue.Interface
+	resourceQ        workqueue.Interface
 	clusterResources altc.ClusterResources
 }
 
@@ -32,21 +31,20 @@ func New(clientset *kubernetes.Clientset, clusterName string) *Controller {
 	//  Setting to 0 disables resync.
 	f := informers.NewSharedInformerFactory(clientset, 0)
 	//goland:noinspection SpellCheckingInspection
-	queue := workqueue.NewNamed("altc-queue")
-	altcinformers := []*custominformers.Informer{
-		custominformers.New(f.Core().V1().Nodes().Informer(), queue),
-		custominformers.New(f.Core().V1().Pods().Informer(), queue),
+	resourceQ := workqueue.NewNamed("altc-resourceQ")
+	custominformers := []*custominformers.Informer{
+		custominformers.New(f.Core().V1().Nodes().Informer(), resourceQ),
+		custominformers.New(f.Core().V1().Pods().Informer(), resourceQ),
 	}
 
 	clusterResources := altc.ClusterResources{
-		clusterName,
-		[]*altc.ClusterResourceItem{},
+		ClusterName: clusterName,
+		Data:        []*altc.ClusterResourceItem{},
 	}
 	return &Controller{
-		custominformers:  altcinformers,
+		custominformers:  custominformers,
 		informerFactory:  f,
-		clusterName:      clusterName,
-		queue:            queue,
+		resourceQ:        resourceQ,
 		clusterResources: clusterResources,
 	}
 }
@@ -54,14 +52,14 @@ func New(clientset *kubernetes.Clientset, clusterName string) *Controller {
 func (c *Controller) Run(stopCh <-chan struct{}, ctx context.Context) {
 	fmt.Println("****")
 	fmt.Println("controller running")
-	fmt.Println(fmt.Sprintf("cluster name: %s", c.clusterName))
+	fmt.Println(fmt.Sprintf("cluster name: %s", c.clusterResources.ClusterName))
 	fmt.Println("starting informers...")
 	fmt.Println("****")
 	c.informerFactory.Start(stopCh) // runs in background
 
 	go func() {
 		<-ctx.Done()
-		c.queue.ShutDown()
+		c.resourceQ.ShutDown()
 	}()
 
 	c.processQueue()
@@ -76,14 +74,14 @@ func (c *Controller) processQueue() {
 	batchLimit := 5
 	var batchSize = batchLimit
 
-	if c.queue.Len() < batchLimit {
+	if c.resourceQ.Len() < batchLimit {
 		batchSize = 0
 	}
 
 	itemsToSend := 0
-	fmt.Println(fmt.Sprintf("processQueue, queue len: %d, batchSize: %d", c.queue.Len(), batchSize))
+	fmt.Println(fmt.Sprintf("processQueue, resourceQ len: %d, batchSize: %d", c.resourceQ.Len(), batchSize))
 	for {
-		item, shutdown := c.queue.Get()
+		item, shutdown := c.resourceQ.Get()
 		if shutdown {
 			return
 		}
@@ -96,12 +94,12 @@ func (c *Controller) processQueue() {
 		fmt.Println(fmt.Sprintf("items to send: %d:", itemsToSend))
 		if batchSize == 0 || itemsToSend >= batchSize {
 			c.send()
-			if c.queue.Len() > batchLimit {
+			if c.resourceQ.Len() > batchLimit {
 				batchSize = batchLimit
 			} else {
-				batchSize = c.queue.Len()
+				batchSize = c.resourceQ.Len()
 			}
-			fmt.Println(fmt.Sprintf("after sending %d items, queue len: %d, batchSize: %d", itemsToSend, c.queue.Len(), batchSize))
+			fmt.Println(fmt.Sprintf("after sending %d items, resourceQ len: %d, batchSize: %d", itemsToSend, c.resourceQ.Len(), batchSize))
 			fmt.Println()
 			itemsToSend = 0
 			continue
@@ -111,14 +109,16 @@ func (c *Controller) processQueue() {
 
 func (c *Controller) processQueueItem(item interface{}) error {
 	// TODO Update the following line when the code is added to send the resource item to the server.
-	// When the code is added to send the resource item to the server, the 'queue.Done' call
+	// When the code is added to send the resource item to the server, the 'resourceQ.Done' call
 	// should not be invoked via a defer statement because we don't want to remove the item
-	// from the queue when the server is unreachable (that is the point of having a queue).
-	defer c.queue.Done(item)
+	// from the resourceQ when the server is unreachable (that is the point of having a resourceQ).
+	// TODO Figure out how to handle resourceQ items with respect to batching the items being
+	// sent to the server.
+	defer c.resourceQ.Done(item)
 
 	clusterResourceQueueItem, ok := item.(*altc.ClusterResourceQueueItem)
 	if !ok {
-		return errors.New(fmt.Sprintf("ERROR: Expected queue item to be %T, got %T", &altc.ClusterResourceQueueItem{}, item))
+		return errors.New(fmt.Sprintf("ERROR: Expected resourceQ item to be %T, got %T", &altc.ClusterResourceQueueItem{}, item))
 	}
 
 	kinds, _, err := scheme.Scheme.ObjectKinds(clusterResourceQueueItem.Payload)
@@ -160,6 +160,7 @@ func waitForInformers() {
 			case <-done:
 				return
 			case t := <-ticker.C:
+				// TODO remove this (unecessary noise in logs)
 				fmt.Println(fmt.Sprintf("%s", t))
 			}
 		}

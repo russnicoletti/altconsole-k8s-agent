@@ -13,8 +13,6 @@ const (
 	Delete Action = "Delete"
 )
 
-type ResourceType string
-
 type ResourceObject interface {
 	runtime.Object
 	metav1.Object

@@ -40,7 +40,8 @@ func (h *handler) OnDelete(obj interface{}) {
 func (h *handler) handle(action altc.Action, obj interface{}) {
 	resourceObject, ok := obj.(altc.ResourceObject)
 	if !ok {
-		fmt.Println("'obj' is not an altc.ResourceObject")
+		fmt.Println("WARN: 'obj' is not an altc.ResourceObject")
+		return
 	}
 
 	clusterResourceQueueItem := &altc.ClusterResourceQueueItem{

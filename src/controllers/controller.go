@@ -17,7 +17,6 @@ type Controller struct {
 	informerFactory   informers.SharedInformerFactory
 	resourceObjectsQ  altcqueues.ResourceObjectQ
 	clusterResourcesQ altcqueues.ClusterResourcesQ
-	clusterName       string
 	batchLimit        int
 }
 
@@ -37,7 +36,7 @@ func New(clientset *kubernetes.Clientset, clusterName string) *Controller {
 	// TODO make this configurable
 	batchLimit := 5
 
-	clusterResourceQ := altcqueues.NewClusterResourcesQ(batchLimit)
+	clusterResourceQ := altcqueues.NewClusterResourcesQ(clusterName, batchLimit)
 
 	custominformers := []*custominformers.Informer{
 		custominformers.New(f.Core().V1().Nodes().Informer(), resourceObjectsQ),
@@ -49,14 +48,13 @@ func New(clientset *kubernetes.Clientset, clusterName string) *Controller {
 		informerFactory:   f,
 		resourceObjectsQ:  resourceObjectsQ,
 		clusterResourcesQ: clusterResourceQ,
-		clusterName:       clusterName, // TODO Only used for logging, consider removing this
 	}
 }
 
 func (c *Controller) Run(stopCh <-chan struct{}, ctx context.Context) {
 	fmt.Println("****")
 	fmt.Println("controller running")
-	fmt.Println(fmt.Sprintf("cluster name: %s", c.clusterName))
+	fmt.Println(fmt.Sprintf("cluster name: %s", c.clusterResourcesQ.GetClusterName()))
 	fmt.Println("starting informers...")
 	fmt.Println("****")
 	c.informerFactory.Start(stopCh) // runs in background

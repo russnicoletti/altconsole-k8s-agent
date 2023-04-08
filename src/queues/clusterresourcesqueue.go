@@ -11,19 +11,20 @@ const clusterResourceQName = "altc-clusterResourcesQ"
 // ClusterResourcesQ
 // TODO consider adding ResourceObjectsQ
 type ClusterResourcesQ struct {
-	queue      workqueue.Interface
-	batchLimit int
-	batchSize  int
-	queueName  string
+	queue       workqueue.Interface
+	batchLimit  int
+	batchSize   int
+	clusterName string
 }
 
-func NewClusterResourcesQ(batchLimit int) ClusterResourcesQ {
+func NewClusterResourcesQ(clusterName string, batchLimit int) ClusterResourcesQ {
 	queue := workqueue.NewNamed(clusterResourceQName)
 
 	return ClusterResourcesQ{
-		queue:      queue,
-		batchLimit: batchLimit,
-		batchSize:  batchLimit,
+		queue:       queue,
+		batchLimit:  batchLimit,
+		batchSize:   batchLimit,
+		clusterName: clusterName,
 	}
 }
 
@@ -63,12 +64,12 @@ func (q *ClusterResourcesQ) addResourcesWithBatchLimit(resourceObjectQ ResourceO
 		}
 
 		clusterResourceItems = append(clusterResourceItems, item)
-		// TODO need to requeue the ClusterResourceItems if there is an error sending the
-		// batch of items in the ClusterResourceQ item to the server
+		// TODO need a way to re-queue clusterResourceItems when there is
+		// an error sending the batch of items in the ClusterResourceQ to the server
 		resourceObjectQ.Done(item)
 	}
 	clusterResources := &altc.ClusterResources{
-		ClusterName: q.queueName,
+		ClusterName: q.clusterName,
 		Data:        clusterResourceItems,
 	}
 	q.queue.Add(clusterResources)
@@ -87,4 +88,8 @@ func (q *ClusterResourcesQ) UpdateBatchSize(resourceObjectQ ResourceObjectQ) {
 
 func (q *ClusterResourcesQ) GetBatchSize() int {
 	return q.batchSize
+}
+
+func (q *ClusterResourcesQ) GetClusterName() string {
+	return q.clusterName
 }

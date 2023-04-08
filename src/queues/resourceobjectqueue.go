@@ -7,14 +7,14 @@ import (
 	"k8s.io/client-go/util/workqueue"
 )
 
-const queueName = "altc-resourceQ"
+const resourceObjectQueueName = "altc-resourceObjectQ"
 
 type ResourceObjectQ struct {
 	queue workqueue.Interface
 }
 
 func NewResourceObjectQ() ResourceObjectQ {
-	queue := workqueue.NewNamed(queueName)
+	queue := workqueue.NewNamed(resourceObjectQueueName)
 
 	return ResourceObjectQ{
 		queue: queue,
@@ -41,8 +41,11 @@ func (q *ResourceObjectQ) Len() int {
 	return q.queue.Len()
 }
 
-func (q *ResourceObjectQ) Get() (item interface{}, shutdown bool) {
-	return q.queue.Get()
+func (q *ResourceObjectQ) Get() (item *altc.ClusterResourceItem, shutdown bool) {
+
+	obj, shutdown := q.queue.Get()
+	returnItem := obj.(*altc.ClusterResourceItem)
+	return returnItem, shutdown
 }
 
 func (q *ResourceObjectQ) Done(item interface{}) {

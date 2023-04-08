@@ -5,20 +5,20 @@ import (
 	custominformers "altc-agent/informers"
 	altcqueues "altc-agent/queues"
 	"context"
-	"errors"
 	"fmt"
 	"k8s.io/apimachinery/pkg/util/json"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/util/workqueue"
 	"time"
 )
 
 type Controller struct {
-	custominformers  []*custominformers.Informer
-	informerFactory  informers.SharedInformerFactory
-	resourceQ        altcqueues.ResourceObjectQ
-	clusterResources altc.ClusterResources
+	custominformers   []*custominformers.Informer
+	informerFactory   informers.SharedInformerFactory
+	resourceObjectsQ  altcqueues.ResourceObjectQ
+	clusterResourcesQ altcqueues.ClusterResourcesQ
+	clusterName       string
+	batchLimit        int
 }
 
 func New(clientset *kubernetes.Clientset, clusterName string) *Controller {
@@ -30,36 +30,41 @@ func New(clientset *kubernetes.Clientset, clusterName string) *Controller {
 	//  There are situations where events can be missed entirely and resyncing every so often solves this.
 	//  Setting to 0 disables resync.
 	f := informers.NewSharedInformerFactory(clientset, 0)
+
 	//goland:noinspection SpellCheckingInspection
-	resourceQ := altcqueues.NewResourceObjectQ()
+	resourceObjectsQ := altcqueues.NewResourceObjectQ()
+
+	// TODO make this configurable
+	batchLimit := 5
+
+	clusterResourceQ := altcqueues.NewClusterResourcesQ(batchLimit)
+
 	custominformers := []*custominformers.Informer{
-		custominformers.New(f.Core().V1().Nodes().Informer(), resourceQ),
-		custominformers.New(f.Core().V1().Pods().Informer(), resourceQ),
+		custominformers.New(f.Core().V1().Nodes().Informer(), resourceObjectsQ),
+		custominformers.New(f.Core().V1().Pods().Informer(), resourceObjectsQ),
 	}
 
-	clusterResources := altc.ClusterResources{
-		ClusterName: clusterName,
-		Data:        []*altc.ClusterResourceItem{},
-	}
 	return &Controller{
-		custominformers:  custominformers,
-		informerFactory:  f,
-		resourceQ:        resourceQ,
-		clusterResources: clusterResources,
+		custominformers:   custominformers,
+		informerFactory:   f,
+		resourceObjectsQ:  resourceObjectsQ,
+		clusterResourcesQ: clusterResourceQ,
+		clusterName:       clusterName, // TODO Only used for logging, consider removing this
 	}
 }
 
 func (c *Controller) Run(stopCh <-chan struct{}, ctx context.Context) {
 	fmt.Println("****")
 	fmt.Println("controller running")
-	fmt.Println(fmt.Sprintf("cluster name: %s", c.clusterResources.ClusterName))
+	fmt.Println(fmt.Sprintf("cluster name: %s", c.clusterName))
 	fmt.Println("starting informers...")
 	fmt.Println("****")
 	c.informerFactory.Start(stopCh) // runs in background
 
 	go func() {
 		<-ctx.Done()
-		c.resourceQ.ShutDown()
+		c.resourceObjectsQ.ShutDown()
+		c.clusterResourcesQ.ShutDown()
 	}()
 
 	c.processQueue()
@@ -70,97 +75,33 @@ func (c *Controller) processQueue() {
 	// Give the informers time to populate their caches
 	waitForInformers()
 
-	// TODO make this configurable
-	batchLimit := 5
-	var batchSize = batchLimit
-
-	if c.resourceQ.Len() < batchLimit {
-		batchSize = 0
-	}
-
-	itemsToSend := 0
-	fmt.Println(fmt.Sprintf("processQueue, resourceQ len: %d, batchSize: %d", c.resourceQ.Len(), batchSize))
 	for {
-		item, shutdown := c.resourceQ.Get()
+		c.clusterResourcesQ.AddResources(c.resourceObjectsQ)
+		clusterResources, shutdown := c.clusterResourcesQ.Get()
 		if shutdown {
+			fmt.Println(fmt.Sprintf("%T shutdown", altcqueues.ClusterResourcesQ{}))
 			return
 		}
 
-		if err := c.processQueueItem(item); err != nil {
-			fmt.Println(err.Error())
-			continue
-		}
-		itemsToSend++
-		fmt.Println(fmt.Sprintf("items to send: %d:", itemsToSend))
-		if batchSize == 0 || itemsToSend >= batchSize {
-			c.send()
-			if c.resourceQ.Len() > batchLimit {
-				batchSize = batchLimit
-			} else {
-				batchSize = c.resourceQ.Len()
-			}
-			fmt.Println(fmt.Sprintf("after sending %d items, resourceQ len: %d, batchSize: %d", itemsToSend, c.resourceQ.Len(), batchSize))
-			fmt.Println()
-			itemsToSend = 0
-			continue
-		}
+		itemsToSend := len(clusterResources.Data)
+		fmt.Println("items from clusterResources to send:", itemsToSend)
+		c.send(clusterResources)
+		c.clusterResourcesQ.Done(clusterResources)
+		fmt.Println(fmt.Sprintf("after sending %d items, resourceQ len: %d",
+			itemsToSend, c.resourceObjectsQ.Len()))
+		fmt.Println()
 	}
 }
 
-func AddResourceToQ(action altc.Action, resourceObject altc.ResourceObject, resourceObjQ workqueue.Interface) {
-
-	clusterResourceItem, err := altc.NewClusterResourceItem(action, resourceObject)
-	if err != nil {
-		fmt.Println(fmt.Sprintf("ERROR: unable to create %T: %s", altc.ClusterResourceItem{}, err))
-		return
-	}
-
-	resourceObjQ.Add(clusterResourceItem)
-}
-
-func (c *Controller) processQueueItem(item interface{}) error {
-	// TODO Update the following line when the code is added to send the resource item to the server.
-	// When the code is added to send the resource item to the server, the 'resourceQ.Done' call
-	// should not be invoked via a defer statement because we don't want to remove the item
-	// from the resourceQ when the server is unreachable (that is the point of having a resourceQ).
-	// TODO Figure out how to handle resourceQ items with respect to batching the items being
-	// sent to the server.
-	defer c.resourceQ.Done(item)
-
-	clusterResourceItem, ok := item.(*altc.ClusterResourceItem)
-	if !ok {
-		return errors.New(fmt.Sprintf("ERROR: Expected resourceQ item to be %T, got %T", &altc.ClusterResourceQueueItem{}, item))
-	}
-	/*
-		kinds, _, err := scheme.Scheme.ObjectKinds(clusterResourceQueueItem.Payload)
-		if err != nil {
-			return errors.New(fmt.Sprintf("failed to find Object %T kind: %v", clusterResourceQueueItem.Payload, err))
-		}
-		if len(kinds) == 0 || kinds[0].Kind == "" {
-			return errors.New(fmt.Sprintf("unknown Object kind for Object %T", clusterResourceQueueItem.Payload))
-		}
-
-		clusterResourceItem := &altc.ClusterResourceItem{
-			Action:  clusterResourceQueueItem.Action,
-			Kind:    kinds[0].Kind,
-			Payload: clusterResourceQueueItem.Payload,
-		}
-	*/
-	c.clusterResources.Data = append(c.clusterResources.Data, clusterResourceItem)
-	fmt.Println(fmt.Sprintf("cluster resources data items added: %d", len(c.clusterResources.Data)))
-	return nil
-}
-
-func (c *Controller) send() {
-	clusterResourcesJson, err := json.Marshal(c.clusterResources)
+func (c *Controller) send(clusterResources *altc.ClusterResources) {
+	clusterResourcesJson, err := json.Marshal(*clusterResources)
 	if err != nil {
 		fmt.Println(fmt.Sprintf("ERROR: error marshalling clusterResources: %s", err))
 	}
 	fmt.Println()
-	fmt.Println(fmt.Sprintf("sending %d clusterResources items", len(c.clusterResources.Data)))
+	fmt.Println(fmt.Sprintf("sending %d clusterResources items", len((*clusterResources).Data)))
 	fmt.Println(string(clusterResourcesJson))
 	fmt.Println()
-	c.clusterResources = altc.ClusterResources{}
 }
 
 func waitForInformers() {

@@ -20,15 +20,10 @@ type ResourceObject interface {
 	metav1.Object
 }
 
-type ClusterResourceQueueItem struct {
-	Action  Action         `json:"action"`
-	Payload ResourceObject `json:"payload"`
-}
-
 type ClusterResourceItem struct {
-	Action  Action         `json:"action"`
-	Kind    string         `json:"kind"`
-	Payload ResourceObject `json:"payload"`
+	Action  Action
+	Kind    string
+	Payload ResourceObject
 }
 
 type ClusterResources struct {

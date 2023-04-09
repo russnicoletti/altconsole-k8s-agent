@@ -8,7 +8,7 @@ import (
 )
 
 type handler struct {
-	queue altcqueues.ResourceObjectQ
+	queue altcqueues.ResourceObjectsQ
 }
 
 type Handler interface {
@@ -19,7 +19,7 @@ type HasName interface {
 	Name() string
 }
 
-func NewHandler(queue altcqueues.ResourceObjectQ) Handler {
+func NewHandler(queue altcqueues.ResourceObjectsQ) Handler {
 	return &handler{
 		queue: queue,
 	}

@@ -15,7 +15,7 @@ import (
 type Controller struct {
 	custominformers   []*custominformers.Informer
 	informerFactory   informers.SharedInformerFactory
-	resourceObjectsQ  altcqueues.ResourceObjectQ
+	resourceObjectsQ  altcqueues.ResourceObjectsQ
 	clusterResourcesQ altcqueues.ClusterResourcesQ
 	batchLimit        int
 }
@@ -30,13 +30,12 @@ func New(clientset *kubernetes.Clientset, clusterName string) *Controller {
 	//  Setting to 0 disables resync.
 	f := informers.NewSharedInformerFactory(clientset, 0)
 
-	//goland:noinspection SpellCheckingInspection
-	resourceObjectsQ := altcqueues.NewResourceObjectQ()
-
 	// TODO make this configurable
 	batchLimit := 5
 
-	clusterResourceQ := altcqueues.NewClusterResourcesQ(clusterName, batchLimit)
+	//goland:noinspection SpellCheckingInspection
+	resourceObjectsQ := altcqueues.NewResourceObjectQ()
+	clusterResourceQ := altcqueues.NewClusterResourcesQ(clusterName, batchLimit, resourceObjectsQ)
 
 	custominformers := []*custominformers.Informer{
 		custominformers.New(f.Core().V1().Nodes().Informer(), resourceObjectsQ),
@@ -74,7 +73,7 @@ func (c *Controller) processQueue() {
 	waitForInformers()
 
 	for {
-		c.clusterResourcesQ.AddResources(c.resourceObjectsQ)
+		c.clusterResourcesQ.AddResources()
 		clusterResources, shutdown := c.clusterResourcesQ.Get()
 		if shutdown {
 			fmt.Println(fmt.Sprintf("%T shutdown", altcqueues.ClusterResourcesQ{}))
@@ -83,7 +82,11 @@ func (c *Controller) processQueue() {
 
 		itemsToSend := len(clusterResources.Data)
 		fmt.Println("items from clusterResources to send:", itemsToSend)
-		c.send(clusterResources)
+		err := c.send(clusterResources)
+		if err != nil {
+			fmt.Println("ERROR: error sending resources to server.", err)
+			c.clusterResourcesQ.RestoreResourceObjects()
+		}
 		c.clusterResourcesQ.Done(clusterResources)
 		fmt.Println(fmt.Sprintf("after sending %d items, resourceQ len: %d",
 			itemsToSend, c.resourceObjectsQ.Len()))
@@ -91,7 +94,7 @@ func (c *Controller) processQueue() {
 	}
 }
 
-func (c *Controller) send(clusterResources *altc.ClusterResources) {
+func (c *Controller) send(clusterResources *altc.ClusterResources) error {
 	clusterResourcesJson, err := json.Marshal(*clusterResources)
 	if err != nil {
 		fmt.Println(fmt.Sprintf("ERROR: error marshalling clusterResources: %s", err))
@@ -100,6 +103,8 @@ func (c *Controller) send(clusterResources *altc.ClusterResources) {
 	fmt.Println(fmt.Sprintf("sending %d clusterResources items", len((*clusterResources).Data)))
 	fmt.Println(string(clusterResourcesJson))
 	fmt.Println()
+
+	return nil
 }
 
 func waitForInformers() {

@@ -9,19 +9,19 @@ import (
 
 const resourceObjectQueueName = "altc-resourceObjectQ"
 
-type ResourceObjectQ struct {
+type ResourceObjectsQ struct {
 	queue workqueue.Interface
 }
 
-func NewResourceObjectQ() ResourceObjectQ {
+func NewResourceObjectQ() ResourceObjectsQ {
 	queue := workqueue.NewNamed(resourceObjectQueueName)
 
-	return ResourceObjectQ{
+	return ResourceObjectsQ{
 		queue: queue,
 	}
 }
 
-func (q *ResourceObjectQ) AddItem(action altc.Action, resourceObject altc.ResourceObject) error {
+func (q *ResourceObjectsQ) AddItem(action altc.Action, resourceObject altc.ResourceObject) error {
 
 	clusterResourceItem, err := altc.NewClusterResourceItem(action, resourceObject)
 	if err != nil {
@@ -33,21 +33,27 @@ func (q *ResourceObjectQ) AddItem(action altc.Action, resourceObject altc.Resour
 	return nil
 }
 
-func (q *ResourceObjectQ) ShutDown() {
+func (q *ResourceObjectsQ) AddItems(items []*altc.ClusterResourceItem) {
+	for _, item := range items {
+		q.queue.Add(item)
+	}
+}
+
+func (q *ResourceObjectsQ) ShutDown() {
 	q.queue.ShutDown()
 }
 
-func (q *ResourceObjectQ) Len() int {
+func (q *ResourceObjectsQ) Len() int {
 	return q.queue.Len()
 }
 
-func (q *ResourceObjectQ) Get() (item *altc.ClusterResourceItem, shutdown bool) {
+func (q *ResourceObjectsQ) Get() (item *altc.ClusterResourceItem, shutdown bool) {
 
 	obj, shutdown := q.queue.Get()
 	returnItem := obj.(*altc.ClusterResourceItem)
 	return returnItem, shutdown
 }
 
-func (q *ResourceObjectQ) Done(item interface{}) {
+func (q *ResourceObjectsQ) Done(item interface{}) {
 	q.queue.Done(item)
 }

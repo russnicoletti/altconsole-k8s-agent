@@ -11,7 +11,7 @@ type Informer struct {
 	handler  handlers.Handler
 }
 
-func New(informer cache.SharedInformer, resourceObjectQ altcqueues.ResourceObjectQ) *Informer {
+func New(informer cache.SharedInformer, resourceObjectQ altcqueues.ResourceObjectsQ) *Informer {
 	handler := handlers.NewHandler(resourceObjectQ)
 	informer.AddEventHandler(handler)
 

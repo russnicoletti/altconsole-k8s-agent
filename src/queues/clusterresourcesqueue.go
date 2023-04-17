@@ -30,7 +30,18 @@ func NewClusterResourcesQ(clusterName string, batchLimit int, resourceObjectsQ R
 	}
 }
 
-func (q *ClusterResourcesQ) AddResources() {
+// Populate
+//
+// Add items to the cluster resources queue, respecting
+// the batch size. If the queue is already populated,
+// does not add any additional resources.
+func (q *ClusterResourcesQ) Populate() {
+
+	if q.queue.Len() > 0 {
+		fmt.Println(fmt.Sprintf("queue already populated, size: %d, not adding resource object items", q.queue.Len()))
+		return
+	}
+
 	q.UpdateBatchSize()
 	fmt.Println("prior to adding resource objects, batch size updated to:", q.batchSize)
 	q.addResourcesWithBatchLimit()
@@ -44,7 +55,13 @@ func (q *ClusterResourcesQ) Len() int {
 	return q.queue.Len()
 }
 
+func (q *ClusterResourcesQ) Add(item *altc.ClusterResources) {
+	q.queue.Add(item)
+}
+
 func (q *ClusterResourcesQ) Get() (resources *altc.ClusterResources, shutdown bool) {
+	// TODO Consider making 'Populate' private and invoking the private 'populate' here
+	// (why does the caller need to invoke 'Populate' and then 'Get'?)
 	obj, shutdown := q.queue.Get()
 	returnItem := obj.(*altc.ClusterResources)
 	return returnItem, shutdown
@@ -86,15 +103,6 @@ func (q *ClusterResourcesQ) UpdateBatchSize() {
 			q.batchSize = 1
 		}
 	}
-}
-
-func (q *ClusterResourcesQ) RestoreResourceObjects() {
-	items, shutdown := q.Get()
-	if shutdown {
-		fmt.Println(fmt.Sprintf("%T shutdown", ClusterResourcesQ{}))
-		return
-	}
-	q.resourceObjectsQ.AddItems(items.Data)
 }
 
 func (q *ClusterResourcesQ) GetBatchSize() int {

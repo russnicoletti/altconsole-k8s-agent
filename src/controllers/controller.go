@@ -73,7 +73,7 @@ func (c *Controller) processQueue() {
 	waitForInformers()
 
 	for {
-		c.clusterResourcesQ.AddResources()
+		c.clusterResourcesQ.Populate()
 		clusterResources, shutdown := c.clusterResourcesQ.Get()
 		if shutdown {
 			fmt.Println(fmt.Sprintf("%T shutdown", altcqueues.ClusterResourcesQ{}))
@@ -83,12 +83,28 @@ func (c *Controller) processQueue() {
 		itemsToSend := len(clusterResources.Data)
 		fmt.Println("items from clusterResources to send:", itemsToSend)
 		err := c.send(clusterResources)
+
+		// Ack the cluster resources queue item regardless of whether the item
+		// was successfully sent to the server.
+		//
+		//  If the item was sent to the server:
+		//   The item needs to be acked to indicate the queue item is finished being
+		//   processed (the presence of items on the queue that are finished being
+		//   processed won't prevent the queue from being shutdown).
+		//
+		//  If the item was not successfully sent to the server:
+		//   The semantics of adding an item to a workqueue is the item won't be re-added if it
+		//   is still "processing". Therefore, the item needs to be acked before being
+		//   re-added.
+		//
+		c.clusterResourcesQ.Done(clusterResources)
+
 		if err != nil {
 			fmt.Println("ERROR: error sending resources to server.", err)
-			c.clusterResourcesQ.RestoreResourceObjects()
+			c.clusterResourcesQ.Add(clusterResources)
+			continue
 		}
-		c.clusterResourcesQ.Done(clusterResources)
-		fmt.Println(fmt.Sprintf("after sending %d items, resourceQ len: %d",
+		fmt.Println(fmt.Sprintf("after sending %d items, resourceObjectsQ len: %d",
 			itemsToSend, c.resourceObjectsQ.Len()))
 		fmt.Println()
 	}

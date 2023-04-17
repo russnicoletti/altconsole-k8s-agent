@@ -33,12 +33,6 @@ func (q *ResourceObjectsQ) AddItem(action altc.Action, resourceObject altc.Resou
 	return nil
 }
 
-func (q *ResourceObjectsQ) AddItems(items []*altc.ClusterResourceItem) {
-	for _, item := range items {
-		q.queue.Add(item)
-	}
-}
-
 func (q *ResourceObjectsQ) ShutDown() {
 	q.queue.ShutDown()
 }

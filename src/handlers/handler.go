@@ -4,6 +4,7 @@ import (
 	"altc-agent/altc"
 	altcqueues "altc-agent/queues"
 	"fmt"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -42,6 +43,12 @@ func (h *handler) handle(action altc.Action, obj interface{}) {
 	if !ok {
 		fmt.Println("WARN: 'obj' is not an altc.ResourceObject")
 		return
+	}
+
+	// Remove managed fields, if present
+	metadata, ok := obj.(metav1.Object)
+	if ok {
+		metadata.SetManagedFields(nil)
 	}
 
 	err := h.queue.AddItem(action, resourceObject)

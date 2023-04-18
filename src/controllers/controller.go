@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"k8s.io/apimachinery/pkg/util/json"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"time"
@@ -19,6 +20,10 @@ type Controller struct {
 	clusterResourcesQ altcqueues.ClusterResourcesQ
 	batchLimit        int
 }
+
+const (
+	sendTimeout = 30 * time.Second
+)
 
 func New(clientset *kubernetes.Clientset, clusterName string) *Controller {
 	// Documentation
@@ -64,10 +69,10 @@ func (c *Controller) Run(stopCh <-chan struct{}, ctx context.Context) {
 		c.clusterResourcesQ.ShutDown()
 	}()
 
-	c.processQueue()
+	c.processQueue(ctx)
 }
 
-func (c *Controller) processQueue() {
+func (c *Controller) processQueue(ctx context.Context) {
 
 	// Give the informers time to populate their caches
 	waitForInformers()
@@ -82,7 +87,7 @@ func (c *Controller) processQueue() {
 
 		itemsToSend := len(clusterResources.Data)
 		fmt.Println("items from clusterResources to send:", itemsToSend)
-		err := c.send(clusterResources)
+		err := c.send(ctx, clusterResources)
 
 		// Ack the cluster resources queue item regardless of whether the item
 		// was successfully sent to the server.
@@ -100,7 +105,7 @@ func (c *Controller) processQueue() {
 		c.clusterResourcesQ.Done(clusterResources)
 
 		if err != nil {
-			fmt.Println("ERROR: error sending resources to server.", err)
+			fmt.Println("ERROR: error sending resources to server:", err)
 			c.clusterResourcesQ.Add(clusterResources)
 			continue
 		}
@@ -110,19 +115,39 @@ func (c *Controller) processQueue() {
 	}
 }
 
-func (c *Controller) send(clusterResources *altc.ClusterResources) error {
-	clusterResourcesJson, err := json.Marshal(*clusterResources)
-	if err != nil {
-		fmt.Println(fmt.Sprintf("ERROR: error marshalling clusterResources: %s", err))
-	}
-	fmt.Println()
-	fmt.Println(fmt.Sprintf("sending %d clusterResources items", len((*clusterResources).Data)))
-	fmt.Println(string(clusterResourcesJson))
-	fmt.Println()
+func (c *Controller) send(ctx context.Context, clusterResources *altc.ClusterResources) error {
 
-	return nil
+	ctx, cancel := context.WithTimeout(ctx, sendTimeout)
+	defer cancel()
+
+	backoff := wait.Backoff{
+		Duration: 500 * time.Millisecond,
+		Factor:   2,
+		Jitter:   0.0,
+		Steps:    4,
+	}
+
+	attempts := 0
+	err := wait.ExponentialBackoffWithContext(ctx, backoff, func() (done bool, err error) {
+		attempts++
+
+		clusterResourcesJson, err := json.Marshal(*clusterResources)
+		if err != nil {
+			fmt.Println(fmt.Sprintf("ERROR: error marshalling clusterResources: %s", err))
+			// Don't return the error from the conditionFunc, doing so will abort the retry
+			return false, nil
+		}
+		fmt.Println()
+		fmt.Println(fmt.Sprintf("sending %d clusterResources items", len((*clusterResources).Data)))
+		fmt.Println(string(clusterResourcesJson))
+		fmt.Println()
+		return true, nil
+	})
+
+	return err
 }
 
+// TODO wait for informers cache to sync instead of waiting an arbitrary amount of time
 func waitForInformers() {
 	ticker := time.NewTicker(time.Second)
 	done := make(chan bool)
@@ -132,13 +157,11 @@ func waitForInformers() {
 			case <-done:
 				return
 			case t := <-ticker.C:
-				// TODO remove this (unecessary noise in logs)
 				fmt.Println(fmt.Sprintf("%s", t))
 			}
 		}
 	}()
 
-	// TODO make this configurable
 	const waitSeconds = 20
 	fmt.Println(fmt.Sprintf("waiting %d seconds for informers cache to populate", waitSeconds))
 	time.Sleep(time.Second * waitSeconds)

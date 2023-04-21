@@ -6,6 +6,7 @@ import (
 	altcqueues "altc-agent/queues"
 	"context"
 	"fmt"
+	"github.com/gogama/httpx"
 	"k8s.io/apimachinery/pkg/util/json"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/informers"
@@ -137,10 +138,14 @@ func (c *Controller) send(ctx context.Context, clusterResources *altc.ClusterRes
 			// Don't return the error from the conditionFunc, doing so will abort the retry
 			return false, nil
 		}
-		fmt.Println()
 		fmt.Println(fmt.Sprintf("sending %d clusterResources items", len((*clusterResources).Data)))
-		fmt.Println(string(clusterResourcesJson))
-		fmt.Println()
+		client := &httpx.Client{}
+		resp, err := client.Post("http://altc-nodeserver:8080/kubernetes/resource", "application/json", clusterResourcesJson)
+		if err != nil {
+			fmt.Println("error hitting nodeserver endpoint:", err.Error())
+			return true, nil
+		}
+		fmt.Println(fmt.Sprintf("response from altc-nodeserver (%d): %s", resp.StatusCode(), string(resp.Body)))
 		return true, nil
 	})
 

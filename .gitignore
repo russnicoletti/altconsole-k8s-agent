@@ -13,6 +13,8 @@ altc-agent-linux
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
 
+calico
+
 # Dependency directories (remove the comment below to include it)
 # vendor/
 .idea

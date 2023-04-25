@@ -1,11 +1,8 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ include "altc-chart.name" . }}
+  name: {{ include "altc-chart.resourcesClusterRoleName" . }}
 rules:
-  # ---
-  # Required for cost savings estimation features.
-  # ---
   - apiGroups:
       - ""
     resources:
@@ -23,13 +20,38 @@ rules:
       - watch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "altc-chart.secretsClusterRoleName" . }}
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: {{ include "altc-chart.name" . }}
+  name: {{ include "altc-chart.resourcesClusterRoleName" . }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: {{ include "altc-chart.name" . }}
+  name: {{ include "altc-chart.resourcesClusterRoleName" . }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "altc-chart.serviceAccountName" . }}
+    namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "altc-chart.secretsClusterRoleName" . }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "altc-chart.secretsClusterRoleName" . }}
 subjects:
   - kind: ServiceAccount
     name: {{ include "altc-chart.serviceAccountName" . }}

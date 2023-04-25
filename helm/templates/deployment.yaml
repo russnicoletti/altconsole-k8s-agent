@@ -33,7 +33,9 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           envFrom:
             - configMapRef:
-               name: {{ include "altc-chart.name" . }}
+                name: {{ include "altc-chart.configMapName" . }}
+            - secretRef:
+               name: {{ include "altc-chart.secretName" . }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
       {{- with .Values.nodeSelector }}

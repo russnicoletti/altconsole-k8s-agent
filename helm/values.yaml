@@ -52,3 +52,9 @@ nodeSelector: {}
 tolerations: []
 
 affinity: {}
+
+clusterRole:
+  podResources:
+    name: "altcClusterRolePodResources"
+  secrets:
+    name: "altcClusterRoleSecrets"

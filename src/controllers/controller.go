@@ -120,17 +120,19 @@ func (c *Controller) send(ctx context.Context, clusterResources *altc.ClusterRes
 
 	ctx, cancel := context.WithTimeout(ctx, sendTimeout)
 	defer cancel()
+	maxSteps := 4
 
 	backoff := wait.Backoff{
 		Duration: 500 * time.Millisecond,
 		Factor:   2,
 		Jitter:   0.0,
-		Steps:    4,
+		Steps:    maxSteps,
 	}
 
 	attempts := 0
 	err := wait.ExponentialBackoffWithContext(ctx, backoff, func() (done bool, err error) {
 		attempts++
+		fmt.Println("attempt", attempts)
 
 		clusterResourcesJson, err := json.Marshal(*clusterResources)
 		if err != nil {
@@ -142,8 +144,12 @@ func (c *Controller) send(ctx context.Context, clusterResources *altc.ClusterRes
 		client := &httpx.Client{}
 		resp, err := client.Post("http://altc-nodeserver:8080/kubernetes/resource", "application/json", clusterResourcesJson)
 		if err != nil {
-			fmt.Println("error hitting nodeserver endpoint:", err.Error())
-			return true, nil
+			fmt.Println(fmt.Sprintf("error sending resources on attempt %d: %s", attempts, err.Error()))
+			// Don't return the error from the conditionFunc, doing so will abort the retry.
+			// The point of the retry is to not consider an error an actual error if the condition
+			// succeeds before the max retry.
+			// 'done' is false since the condition has not succeeded yet
+			return false, nil
 		}
 		fmt.Println(fmt.Sprintf("response from altc-nodeserver (%d): %s", resp.StatusCode(), string(resp.Body)))
 		return true, nil

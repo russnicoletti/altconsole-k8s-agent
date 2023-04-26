@@ -65,26 +65,26 @@ Create the name of the service account to use
 Create the name of the cluster role for accessing kubernetes resources
 */}}
 {{- define "altc-chart.resourcesClusterRoleName" -}}
-{{- .Values.clusterRole.podResources.name }}
+{{- default (include "altc-chart.name" .) .Values.clusterRole.podResources.name }}
 {{- end }}
 
 {{/*
 Create the name of the cluster role for accessing kubernetes secrets
 */}}
 {{- define "altc-chart.secretsClusterRoleName" -}}
-{{- .Values.clusterRole.secrets.name }}
+{{- default (include "altc-chart.name" .) .Values.clusterRole.secrets.name }}
 {{- end }}
 
 {{/*
 Create the name of the altc configmap
 */}}
 {{- define "altc-chart.configMapName" -}}
-{{- default "altc-env-config-map" .Values.configMapName}}
+{{- default (include "altc-chart.name" .) .Values.configMapName}}
 {{- end }}
 
 {{/*
 Create the name of the altc secret
 */}}
 {{- define "altc-chart.secretName" -}}
-{{- default "altc-env-secret" .Values.secretName }}
+{{- default (include "altc-chart.name" .) .Values.secretName }}
 {{- end }}

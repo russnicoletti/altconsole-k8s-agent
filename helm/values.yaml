@@ -55,6 +55,6 @@ affinity: {}
 
 clusterRole:
   podResources:
-    name: "altcClusterRolePodResources"
+    name: "altc-agent-pod-resources"
   secrets:
-    name: "altcClusterRoleSecrets"
+    name: "altc-agent-secrets"

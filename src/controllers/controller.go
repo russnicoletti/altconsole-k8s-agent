@@ -6,9 +6,6 @@ import (
 	altcqueues "altc-agent/queues"
 	"context"
 	"fmt"
-	"github.com/gogama/httpx"
-	"k8s.io/apimachinery/pkg/util/json"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"time"
@@ -19,12 +16,9 @@ type Controller struct {
 	informerFactory   informers.SharedInformerFactory
 	resourceObjectsQ  altcqueues.ResourceObjectsQ
 	clusterResourcesQ altcqueues.ClusterResourcesQ
+	altcClient        *altc.Client
 	batchLimit        int
 }
-
-const (
-	sendTimeout = 30 * time.Second
-)
 
 func New(clientset *kubernetes.Clientset, clusterName string) *Controller {
 	// Documentation
@@ -53,6 +47,7 @@ func New(clientset *kubernetes.Clientset, clusterName string) *Controller {
 		informerFactory:   f,
 		resourceObjectsQ:  resourceObjectsQ,
 		clusterResourcesQ: clusterResourceQ,
+		altcClient:        altc.NewClient(),
 	}
 }
 
@@ -70,7 +65,12 @@ func (c *Controller) Run(stopCh <-chan struct{}, ctx context.Context) {
 		c.clusterResourcesQ.ShutDown()
 	}()
 
-	c.processQueue(ctx)
+	err := c.altcClient.Register(ctx)
+	if err == nil {
+		c.processQueue(ctx)
+	} else {
+		fmt.Println("ERROR registering client:", err)
+	}
 }
 
 func (c *Controller) processQueue(ctx context.Context) {
@@ -88,7 +88,7 @@ func (c *Controller) processQueue(ctx context.Context) {
 
 		itemsToSend := len(clusterResources.Data)
 		fmt.Println("items from clusterResources to send:", itemsToSend)
-		err := c.send(ctx, clusterResources)
+		err := c.altcClient.Send(ctx, clusterResources)
 
 		// Ack the cluster resources queue item regardless of whether the item
 		// was successfully sent to the server.
@@ -114,48 +114,6 @@ func (c *Controller) processQueue(ctx context.Context) {
 			itemsToSend, c.resourceObjectsQ.Len()))
 		fmt.Println()
 	}
-}
-
-func (c *Controller) send(ctx context.Context, clusterResources *altc.ClusterResources) error {
-
-	ctx, cancel := context.WithTimeout(ctx, sendTimeout)
-	defer cancel()
-	maxSteps := 4
-
-	backoff := wait.Backoff{
-		Duration: 500 * time.Millisecond,
-		Factor:   2,
-		Jitter:   0.0,
-		Steps:    maxSteps,
-	}
-
-	attempts := 0
-	err := wait.ExponentialBackoffWithContext(ctx, backoff, func() (done bool, err error) {
-		attempts++
-		fmt.Println("attempt", attempts)
-
-		clusterResourcesJson, err := json.Marshal(*clusterResources)
-		if err != nil {
-			fmt.Println(fmt.Sprintf("ERROR: error marshalling clusterResources: %s", err))
-			// Don't return the error from the conditionFunc, doing so will abort the retry
-			return false, nil
-		}
-		fmt.Println(fmt.Sprintf("sending %d clusterResources items", len((*clusterResources).Data)))
-		client := &httpx.Client{}
-		resp, err := client.Post("http://altc-nodeserver:8080/kubernetes/resource", "application/json", clusterResourcesJson)
-		if err != nil {
-			fmt.Println(fmt.Sprintf("error sending resources on attempt %d: %s", attempts, err.Error()))
-			// Don't return the error from the conditionFunc, doing so will abort the retry.
-			// The point of the retry is to not consider an error an actual error if the condition
-			// succeeds before the max retry.
-			// 'done' is false since the condition has not succeeded yet
-			return false, nil
-		}
-		fmt.Println(fmt.Sprintf("response from altc-nodeserver (%d): %s", resp.StatusCode(), string(resp.Body)))
-		return true, nil
-	})
-
-	return err
 }
 
 // TODO wait for informers cache to sync instead of waiting an arbitrary amount of time

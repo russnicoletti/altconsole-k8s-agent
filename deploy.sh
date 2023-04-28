@@ -1,13 +1,15 @@
 #!/bin/sh
 ALTC_CONFIG_MAP_NAME="altc-agent"
 ALTC_SECRET_NAME="altc-agent"
+ALTC_CONFIG_MAP_TEMPLATE_FILE="deployment_files/altc-agent-configmap.yaml"
 
 kubectl get configmap $ALTC_CONFIG_MAP_NAME > /dev/null 2>&1
 if [ "$?" -eq "0" ]; then
   echo "ConfigMap '${ALTC_CONFIG_MAP_NAME}' already exists"
 else
   echo "ConfigMap '${ALTC_CONFIG_MAP_NAME}' does not exist. Creating ..."
-  kubectl create configmap $ALTC_CONFIG_MAP_NAME --from-literal=CLUSTER_NAME=`kubectl config view --minify -o jsonpath='{.clusters[].name}'`
+  CLUSTER_NAME=`kubectl config view --minify -o jsonpath='{.clusters[].name}'`
+  sed "s/REPLACE_WITH_CLUSTER_NAME/${CLUSTER_NAME}/g" ${ALTC_CONFIG_MAP_TEMPLATE_FILE} | kubectl apply -f -
 fi
 
 echo "${ALTC_CONFIG_MAP_NAME} ConfigMap contents:"

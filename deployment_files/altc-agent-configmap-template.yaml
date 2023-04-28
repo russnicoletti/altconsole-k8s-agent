@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: altc-agent
+data:
+  AUTH_URI: "https://dev-hzseg066.us.auth0.com/oauth/token"
+  CLUSTER_NAME: REPLACE_WITH_CLUSTER_NAME

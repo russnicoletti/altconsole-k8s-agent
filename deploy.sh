@@ -1,7 +1,7 @@
 #!/bin/sh
 ALTC_CONFIG_MAP_NAME="altc-agent"
 ALTC_SECRET_NAME="altc-agent"
-ALTC_CONFIG_MAP_TEMPLATE_FILE="deployment_files/altc-agent-configmap.yaml"
+ALTC_CONFIG_MAP_TEMPLATE_FILE="deployment_files/altc-agent-configmap-template.yaml"
 
 kubectl get configmap $ALTC_CONFIG_MAP_NAME > /dev/null 2>&1
 if [ "$?" -eq "0" ]; then
@@ -13,7 +13,7 @@ else
 fi
 
 echo "${ALTC_CONFIG_MAP_NAME} ConfigMap contents:"
-minikube kubectl -- describe configmap $ALTC_CONFIG_MAP_NAME | grep -A 2 "CLUSTER_NAME"
+kubectl describe configmap $ALTC_CONFIG_MAP_NAME | grep -A 2 "CLUSTER_NAME"
 
 kubectl get secret $ALTC_SECRET_NAME > /dev/null 2>&1
 if [ "$?" -eq "0" ]; then

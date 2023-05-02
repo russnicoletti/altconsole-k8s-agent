@@ -125,15 +125,21 @@ func waitForInformers() {
 			select {
 			case <-done:
 				return
-			case t := <-ticker.C:
-				fmt.Println(fmt.Sprintf("%s", t))
+			case <-ticker.C:
+				//fmt.Println(fmt.Sprintf("%s", t))
 			}
 		}
 	}()
 
 	const waitSeconds = 20
+
+	fmt.Println()
+	fmt.Println(time.Now())
 	fmt.Println(fmt.Sprintf("waiting %d seconds for informers cache to populate", waitSeconds))
 	time.Sleep(time.Second * waitSeconds)
+	fmt.Println(time.Now())
+	fmt.Println()
+
 	ticker.Stop()
 	done <- true
 }

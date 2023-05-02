@@ -76,7 +76,7 @@ func (q *ClusterResourcesQ) addResourcesWithBatchLimit() {
 	for i := 0; i < q.batchSize; i++ {
 
 		item, shutdown := q.resourceObjectsQ.Get()
-		fmt.Println("adding resourceObject:", i+1)
+		//fmt.Println("adding resourceObject:", i+1)
 		if shutdown {
 			fmt.Println(fmt.Sprintf("%T shutdown", ClusterResourcesQ{}))
 			return

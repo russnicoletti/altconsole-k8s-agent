@@ -3,7 +3,9 @@ module altc-agent
 go 1.20
 
 require (
+	github.com/MicahParks/keyfunc/v2 v2.0.1
 	github.com/gogama/httpx v1.1.5
+	github.com/golang-jwt/jwt/v4 v4.5.0
 	k8s.io/apimachinery v0.26.3
 	k8s.io/client-go v0.26.3
 )
@@ -16,6 +18,7 @@ require (
 	github.com/go-openapi/jsonreference v0.20.0 // indirect
 	github.com/go-openapi/swag v0.19.14 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
+	github.com/golang-jwt/jwt/v5 v5.0.0 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/gnostic v0.5.7-v3refs // indirect
 	github.com/google/go-cmp v0.5.9 // indirect

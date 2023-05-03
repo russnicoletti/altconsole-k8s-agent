@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nodeserver 
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nodeserver
+  template:
+    metadata:
+      labels:
+        app: nodeserver
+    spec:
+      containers:
+        - name: server
+          image: docker.io/russnicolettidocker/nodeserver:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3000
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: altc-nodeserver
+spec:
+  selector:
+    app: nodeserver
+  ports:
+    - name: server
+      protocol: TCP
+      port: 8080
+      targetPort: 3000
+

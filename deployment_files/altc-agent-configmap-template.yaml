@@ -3,6 +3,7 @@ kind: ConfigMap
 metadata:
   name: altc-agent
 data:
+  BATCH_LIMIT: REPLACE_WITH_BATCH_LIMIT
   CLUSTER_NAME: REPLACE_WITH_CLUSTER_NAME
   AUTH_URI: "https://dev-hzseg066.us.auth0.com/oauth/token"
   AUTH_ISSUER: aHR0cHM6Ly9kZXYtaHpzZWcwNjYudXMuYXV0aDAuY29tLw==

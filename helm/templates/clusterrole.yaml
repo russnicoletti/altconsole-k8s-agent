@@ -6,14 +6,68 @@ rules:
   - apiGroups:
       - ""
     resources:
-      - pods
-      - nodes
-      - replicationcontrollers
-      - persistentvolumeclaims
-      - persistentvolumes
-      - services
-      - namespaces
+      - configmaps
+      - endpoints
       - events
+      - limitranges
+      - namespaces
+      - nodes
+      - persistentvolumeclaims
+      - podtemplates
+      - pods
+      - replicationcontrollers
+      - resourcequotas
+      - secrets
+      - serviceaccounts
+      - services
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - apps
+    resources:
+      - deployments
+      - daemonsets
+      - statefulsets
+      - replicasets
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - batch
+    resources:
+      - jobs
+      - cronjobs
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - networking.k8s.io
+    resources:
+      - ingresses
+      - networkpolicies
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - rbac.authorization.k8s.io
+    resources:
+      - clusterroles
+      - clusterrolebindings
+      - rolebindings
+      - roles
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - storage.k8s.io
+    resources:
+      - csistoragecapacities
     verbs:
       - get
       - list

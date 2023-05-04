@@ -1,14 +1,11 @@
-# k8s-agent
-#  Instruction for running altconsole Kubernetes Agent
-
-To run the kubernetes `altc-agent`:
+#  Instructions for running the altconsole Kubernetes Agent
 
 ## Install local kubernetes (minikube)
 
-To install (minikube) on MacOS:
+To install minikube on MacOS:
 
-- `curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-darwin-amd64`
-- `sudo install minikube-darwin-amd64 /usr/local/bin/minikube`
+`curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-darwin-amd64`  
+`sudo install minikube-darwin-amd64 /usr/local/bin/minikube`
 
 For other operating systems, see [minikube start](https://minikube.sigs.k8s.io/docs/start/) page
 
@@ -20,6 +17,7 @@ For other operating systems, see [minikube start](https://minikube.sigs.k8s.io/d
 `cd node-server`  
 `./make.sh`  
 `kubectl apply -f server.yaml`  
+`cd -`
 
 To view the logs:  
 ``kubectl logs -f `eval kubectl get pods | grep nodeserver | cut -d " " -f 1,2` ``  
@@ -37,7 +35,6 @@ On MacOS:
 `helm repo update`
 
 ## Build and deploy k8s-agent
-`cd ..`  
 `./make.sh`  
 `./deploy.sh`
 
@@ -47,6 +44,9 @@ There should now be two pods in the cluster:
 `NAME                          READY   STATUS    RESTARTS   AGE`  
 `altc-agent-84fd87c46b-b445t   1/1     Running   0          4s`  
 `nodeserver-78d7b5cc6c-5z9wb   1/1     Running   0          28s`
+
+To view agent logs:  
+``kubectl logs -f `eval kubectl get pods | grep altc | cut -d " " -f 1,2` ``
 
 ## k8s-agent Behavior
 ### Authentication
@@ -63,3 +63,7 @@ The authentication process consists of:
 - The handler will add the resources to a queue
 - The k8s-agent controller will continually process the queue, creating a batch of resources.
 - The batch of resources is sent to the local server via the server's `/kubernetes/resource` endpoint
+
+## Known Issues
+[address continual update of endpoints](https://altconsole.atlassian.net/browse/ALTC-315)  
+[avoid fixed wait time at startup](https://altconsole.atlassian.net/browse/ALTC-316)

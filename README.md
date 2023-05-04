@@ -57,8 +57,8 @@ The authentication process consists of:
 - Note: currently the `TokenId` is not used. In the future, it will be exchanged for an altconsole `JWT` that will be used to make requests to the altconsole backend
 
 ### Collect kubernetes resources
-- Wait 20 seconds (currently not configurable) for the kubernetes `informers` to populate their cache
-- **TODO** refer to Jira ticket explaining how this arbitrary wait can be avoided
+- Wait 20 seconds (currently not configurable) for the kubernetes `informers` to populate their caches  
+-- **TODO** See [avoid fixed wait time at startup](https://altconsole.atlassian.net/browse/ALTC-316)
 - Start the informers. They will begin sending the kubernetes resources to the k8s-agent informer handler
 - The handler will add the resources to a queue
 - The k8s-agent controller will continually process the queue, creating a batch of resources.

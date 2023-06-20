@@ -69,7 +69,6 @@ func (c *Client) Send(ctx context.Context, clusterResources *ClusterResources) e
 	attempts := 0
 	err := wait.ExponentialBackoffWithContext(ctx, backoff, func() (done bool, err error) {
 		attempts++
-		fmt.Println("attempt", attempts)
 
 		clusterResourcesJson, err := json.Marshal(*clusterResources)
 		if err != nil {
@@ -88,7 +87,9 @@ func (c *Client) Send(ctx context.Context, clusterResources *ClusterResources) e
 			// 'done' is false since the condition has not succeeded yet
 			return false, nil
 		}
-		fmt.Println(fmt.Sprintf("response from altc-nodeserver (%d): %s", resp.StatusCode(), string(resp.Body)))
+		if resp.StatusCode() != 200 {
+			fmt.Println(fmt.Sprintf("response from altc-nodeserver (%d): %s", resp.StatusCode(), string(resp.Body)))
+		}
 		return true, nil
 	})
 

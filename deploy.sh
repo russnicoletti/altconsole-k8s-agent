@@ -14,13 +14,14 @@ else
   sed "s/REPLACE_WITH_CLUSTER_NAME/\"${CLUSTER_NAME}\"/g" ${ALTC_CONFIG_MAP_TEMPLATE_FILE} > ${ALTC_CONFIG_MAP_FILE}
 
   # Update batch limit in config map template
-  # TODO: allow batch limit to be specified on command line
-  sed -I sav "s/REPLACE_WITH_BATCH_LIMIT/\"15\"/g" ${ALTC_CONFIG_MAP_FILE}
+  # TODO: allow batch limit and snapshot interval to be specified on command line
+  sed -I sav "s/REPLACE_WITH_BATCH_LIMIT/\"10\"/g" ${ALTC_CONFIG_MAP_FILE}
+  sed -I sav "s/REPLACE_WITH_SNAPSHOT_INTERVAL_SECONDS/\"30\"/g" ${ALTC_CONFIG_MAP_FILE}
   kubectl apply -f ${ALTC_CONFIG_MAP_FILE}
 fi
 
 echo "${ALTC_CONFIG_MAP_NAME} ConfigMap contents:"
-kubectl describe configmap $ALTC_CONFIG_MAP_NAME | egrep -A 2 'CLUSTER_NAME|BATCH_LIMIT'
+kubectl describe configmap $ALTC_CONFIG_MAP_NAME | egrep -A 2 'CLUSTER_NAME|BATCH_LIMIT|SNAPSHOT'
 
 kubectl get secret $ALTC_SECRET_NAME > /dev/null 2>&1
 if [ "$?" -eq "0" ]; then

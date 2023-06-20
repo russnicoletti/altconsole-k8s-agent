@@ -4,6 +4,7 @@ import (
 	"fmt"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	k8stypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 )
 
@@ -28,6 +29,7 @@ type ClusterResourceItem struct {
 
 type ClusterResources struct {
 	ClusterName string                 `json:"clusterName"`
+	SnapshotId  k8stypes.UID           `json:"snapshotId"`
 	Data        []*ClusterResourceItem `json:"data"`
 }
 

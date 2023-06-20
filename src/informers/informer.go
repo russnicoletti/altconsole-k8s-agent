@@ -7,16 +7,22 @@ import (
 )
 
 type Informer struct {
-	informer cache.SharedInformer
-	handler  handlers.Handler
+	Name     string
+	Informer cache.SharedInformer
+	Handler  handlers.Handler
 }
 
-func New(informer cache.SharedInformer, resourceObjectQ altcqueues.ResourceObjectsQ) *Informer {
+func New(informer cache.SharedInformer, name string, resourceObjectQ altcqueues.ResourceObjectsQ) *Informer {
 	handler := handlers.NewHandler(resourceObjectQ)
-	informer.AddEventHandler(handler)
+	// handler is invoked explicitly when processing informer cache.
+	// handlers should not be invoked dynamically by informers
+	/*
+		informer.AddEventHandler(handler)
+	*/
 
 	return &Informer{
-		informer: informer,
-		handler:  handler,
+		Name:     name,
+		Informer: informer,
+		Handler:  handler,
 	}
 }

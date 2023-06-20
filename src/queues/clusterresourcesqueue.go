@@ -3,6 +3,8 @@ package altcqueues
 import (
 	"altc-agent/altc"
 	"fmt"
+	k8stypes "k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/client-go/util/workqueue"
 )
 
@@ -16,6 +18,7 @@ type ClusterResourcesQ struct {
 	batchLimit       int
 	batchSize        int
 	clusterName      string
+	clusterResources *altc.ClusterResources
 }
 
 func NewClusterResourcesQ(clusterName string, batchLimit int, resourceObjectsQ ResourceObjectsQ) ClusterResourcesQ {
@@ -30,21 +33,28 @@ func NewClusterResourcesQ(clusterName string, batchLimit int, resourceObjectsQ R
 	}
 }
 
+// Initialize
+//
+// Initialize should be called once for each snapshot. The function creates a snapshotId, which will be used
+// for all the clusterResources created from this queue -- until a subsequent `Initialize` call is made.
+func (q *ClusterResourcesQ) Initialize() k8stypes.UID {
+	return uuid.NewUUID()
+}
+
 // Populate
 //
 // Add items to the cluster resources queue, respecting
 // the batch size. If the queue is already populated,
 // does not add any additional resources.
-func (q *ClusterResourcesQ) Populate() {
-
+func (q *ClusterResourcesQ) Populate(snapshotId k8stypes.UID) {
 	if q.queue.Len() > 0 {
 		fmt.Println(fmt.Sprintf("queue already populated, size: %d, not adding resource object items", q.queue.Len()))
 		return
 	}
 
 	q.UpdateBatchSize()
-	fmt.Println("prior to adding resource objects, batch size updated to:", q.batchSize)
-	q.addResourcesWithBatchLimit()
+	//fmt.Println("prior to adding resource objects, batch size updated to:", q.batchSize)
+	q.addResourcesWithBatchLimit(snapshotId)
 }
 
 func (q *ClusterResourcesQ) ShutDown() {
@@ -71,9 +81,10 @@ func (q *ClusterResourcesQ) Done(item interface{}) {
 	q.queue.Done(item)
 }
 
-func (q *ClusterResourcesQ) addResourcesWithBatchLimit() {
+func (q *ClusterResourcesQ) addResourcesWithBatchLimit(snapshotId k8stypes.UID) {
+	//fmt.Println("adding", q.batchSize-q.queue.Len(), "items...")
 	clusterResourceItems := make([]*altc.ClusterResourceItem, 0, 0)
-	for i := 0; i < q.batchSize; i++ {
+	for i := q.queue.Len(); i < q.batchSize; i++ {
 
 		item, shutdown := q.resourceObjectsQ.Get()
 		//fmt.Println("adding resourceObject:", i+1)
@@ -89,6 +100,7 @@ func (q *ClusterResourcesQ) addResourcesWithBatchLimit() {
 	}
 	clusterResources := &altc.ClusterResources{
 		ClusterName: q.clusterName,
+		SnapshotId:  snapshotId,
 		Data:        clusterResourceItems,
 	}
 	q.queue.Add(clusterResources)

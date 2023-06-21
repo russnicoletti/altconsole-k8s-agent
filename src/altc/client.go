@@ -70,13 +70,14 @@ func (c *Client) Send(ctx context.Context, clusterResources *ClusterResources) e
 	err := wait.ExponentialBackoffWithContext(ctx, backoff, func() (done bool, err error) {
 		attempts++
 
+		fmt.Println(fmt.Sprintf("sending %d clusterResources items", len((*clusterResources).Data)))
+
 		clusterResourcesJson, err := json.Marshal(*clusterResources)
 		if err != nil {
 			fmt.Println(fmt.Sprintf("ERROR: error marshalling clusterResources: %s", err))
 			// Don't return the error from the conditionFunc, doing so will abort the retry
 			return false, nil
 		}
-		fmt.Println(fmt.Sprintf("sending %d clusterResources items", len((*clusterResources).Data)))
 		client := &httpx.Client{}
 		resp, err := client.Post("http://altc-nodeserver:8080/kubernetes/resource", "application/json", clusterResourcesJson)
 		if err != nil {

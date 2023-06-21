@@ -10,8 +10,6 @@ import (
 
 const clusterResourceQName = "altc-clusterResourcesQ"
 
-// ClusterResourcesQ
-// TODO consider adding ResourceObjectsQ
 type ClusterResourcesQ struct {
 	queue            workqueue.Interface
 	resourceObjectsQ ResourceObjectsQ
@@ -35,7 +33,7 @@ func NewClusterResourcesQ(clusterName string, batchLimit int, resourceObjectsQ R
 
 // Initialize
 //
-// Initialize should be called once for each snapshot. The function creates a snapshotId, which will be used
+// This function should be called once for each snapshot. The function creates a snapshotId, which will be used
 // for all the clusterResources created from this queue -- until a subsequent `Initialize` call is made.
 func (q *ClusterResourcesQ) Initialize() k8stypes.UID {
 	return uuid.NewUUID()
@@ -94,8 +92,6 @@ func (q *ClusterResourcesQ) addResourcesWithBatchLimit(snapshotId k8stypes.UID) 
 		}
 
 		clusterResourceItems = append(clusterResourceItems, item)
-		// TODO need a way to re-queue clusterResourceItems when there is
-		// an error sending the batch of items in the ClusterResourceQ to the server
 		q.resourceObjectsQ.Done(item)
 	}
 	clusterResources := &altc.ClusterResources{

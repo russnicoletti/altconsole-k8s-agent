@@ -14,7 +14,7 @@ type Informer struct {
 
 func New(informer cache.SharedInformer, name string, resourceObjectQ altcqueues.ResourceObjectsQ) *Informer {
 	handler := handlers.NewHandler(resourceObjectQ)
-	// handler is invoked explicitly when processing informer cache.
+	// handler is invoked explicitly when creating a snapshot of the cluster resources
 	// handlers should not be invoked dynamically by informers
 	/*
 		informer.AddEventHandler(handler)

@@ -39,7 +39,6 @@ func New(clientset *kubernetes.Clientset, clusterName string) *Controller {
 	//  Setting to 0 disables resync.
 	f := informers.NewSharedInformerFactory(clientset, 0)
 
-	// TODO make this configurable
 	batchLimit, _ := strconv.Atoi(os.Getenv(batchLimitEnv))
 	snapshotIntervalSeconds, _ := strconv.Atoi(os.Getenv(snapshotIntervalEnv))
 
@@ -148,11 +147,11 @@ func (c *Controller) processQueue(ctx context.Context) {
 				//
 				//  If the item was sent to the server:
 				//   The item needs to be acked to indicate the queue item is finished being
-				//   processed (the presence of items on the queue that are finished being
-				//   processed won't prevent the queue from being shutdown).
+				//   processed (the presence of items on the queue that are not finished being
+				//   processed will prevent the queue from being shutdown).
 				//
 				//  If the item was not successfully sent to the server:
-				//   The semantics of adding an item to a workqueue is the item won't be re-added if it
+				//   The semantics of adding an item to a workqueue is such that the item won't be re-added if it
 				//   is still "processing". Therefore, the item needs to be acked before being
 				//   re-added.
 				//
@@ -202,6 +201,8 @@ func (c *Controller) waitForInformersToSync(ctx context.Context) error {
 }
 
 func (c *Controller) collectResources() {
+	// Shouldn't be collecting resources until all previously collected
+	// resources have been sent to the server
 	if c.clusterResourcesQ.Len() != 0 {
 		fmt.Println("clusterResourcesQ is not empty, not adding additional resources")
 		return

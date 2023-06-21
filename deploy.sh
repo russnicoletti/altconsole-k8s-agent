@@ -13,7 +13,7 @@ else
   CLUSTER_NAME=`kubectl config view --minify -o jsonpath='{.clusters[].name}'`
   sed "s/REPLACE_WITH_CLUSTER_NAME/\"${CLUSTER_NAME}\"/g" ${ALTC_CONFIG_MAP_TEMPLATE_FILE} > ${ALTC_CONFIG_MAP_FILE}
 
-  # Update batch limit in config map template
+  # Update batch limit and snapshot interval in config map template
   # TODO: allow batch limit and snapshot interval to be specified on command line
   sed -I sav "s/REPLACE_WITH_BATCH_LIMIT/\"10\"/g" ${ALTC_CONFIG_MAP_FILE}
   sed -I sav "s/REPLACE_WITH_SNAPSHOT_INTERVAL_SECONDS/\"30\"/g" ${ALTC_CONFIG_MAP_FILE}

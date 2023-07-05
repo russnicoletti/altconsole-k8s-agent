@@ -130,7 +130,9 @@ func (c *Controller) processQueue(ctx context.Context) {
 			fmt.Println("total cluster resource objects:", c.resourceObjectsQ.Len())
 			snapshotId := c.clusterResourcesQ.Initialize()
 			fmt.Println("snapshotId:", snapshotId)
-			for {
+
+			// Process all resources collected in the snapshot
+			for ok := true; ok; ok = c.resourceObjectsQ.Len() != 0 {
 				//fmt.Println("populating cluster resources queue")
 				c.clusterResourcesQ.Populate(snapshotId)
 				clusterResources, shutdown := c.clusterResourcesQ.Get()
@@ -164,12 +166,6 @@ func (c *Controller) processQueue(ctx context.Context) {
 				}
 				fmt.Println(fmt.Sprintf("after sending %d items, resourceObjectsQ len: %d",
 					itemsToSend, c.resourceObjectsQ.Len()))
-
-				// If all resource objects have been sent, terminate the loop
-				if c.resourceObjectsQ.Len() == 0 {
-					fmt.Println()
-					break
-				}
 			}
 			break
 		case <-stop:

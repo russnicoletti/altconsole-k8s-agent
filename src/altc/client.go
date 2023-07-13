@@ -1,6 +1,7 @@
 package altc
 
 import (
+	"compress/gzip"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -8,6 +9,7 @@ import (
 	"fmt"
 	"github.com/MicahParks/keyfunc/v2"
 	"github.com/gogama/httpx"
+	"github.com/gogama/httpx/request"
 	"github.com/golang-jwt/jwt/v5"
 	"io"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -70,16 +72,7 @@ func (c *Client) Send(ctx context.Context, clusterResources *ClusterResources) e
 	err := wait.ExponentialBackoffWithContext(ctx, backoff, func() (done bool, err error) {
 		attempts++
 
-		fmt.Println(fmt.Sprintf("sending %d clusterResources items", len((*clusterResources).Data)))
-
-		clusterResourcesJson, err := json.Marshal(*clusterResources)
-		if err != nil {
-			fmt.Println(fmt.Sprintf("ERROR: error marshalling clusterResources: %s", err))
-			// Don't return the error from the conditionFunc, doing so will abort the retry
-			return false, nil
-		}
-		client := &httpx.Client{}
-		resp, err := client.Post("http://altc-nodeserver:8080/kubernetes/resource", "application/json", clusterResourcesJson)
+		execution, err := send(clusterResources)
 		if err != nil {
 			fmt.Println(fmt.Sprintf("error sending resources on attempt %d: %s", attempts, err.Error()))
 			// Don't return the error from the conditionFunc, doing so will abort the retry.
@@ -88,13 +81,56 @@ func (c *Client) Send(ctx context.Context, clusterResources *ClusterResources) e
 			// 'done' is false since the condition has not succeeded yet
 			return false, nil
 		}
-		if resp.StatusCode() != 200 {
-			fmt.Println(fmt.Sprintf("response from altc-nodeserver (%d): %s", resp.StatusCode(), string(resp.Body)))
+		if execution.Response.StatusCode != 200 {
+			fmt.Println(fmt.Sprintf("response from altc-nodeserver (%d): %s", execution.Response.StatusCode, execution.Response.Body))
 		}
+
 		return true, nil
 	})
 
 	return err
+}
+
+func send(clusterResources *ClusterResources) (*request.Execution, error) {
+	fmt.Println(fmt.Sprintf("sending %d clusterResources items", len((*clusterResources).Data)))
+	client := &httpx.Client{}
+	pr, pw := io.Pipe()
+
+	defer pr.Close()
+
+	/* Write to the pipe asynchronously because the pipe uses channels to synchronize
+	   writing to the pipe with reading from the pipe: there must be a reader waiting
+	   to receive the bytes written before data is written to the pipe.
+	   This is because after writing to the pipe (after sending the bytes to write to
+	   the write channel), the writer waits for the number of bytes read to be sent
+	   to the read channel, which happens during the read operation after the bytes
+	   are received from write channel.
+	*/
+	go func() {
+		gw := gzip.NewWriter(pw)
+
+		if err := json.NewEncoder(gw).Encode(clusterResources); err != nil {
+			fmt.Println("error encoding gzip data:", err)
+		}
+
+		if err := gw.Close(); err != nil {
+			fmt.Println("error closing gzip writer:", err)
+		}
+		defer func() {
+			if err := pw.Close(); err != nil {
+				fmt.Println("error closing pipe writer:", err)
+			}
+		}()
+	}()
+
+	plan, err := request.NewPlan("POST", "http://altc-nodeserver:8080/kubernetes/resource", pr)
+	if err != nil {
+		return nil, err
+	}
+	plan.Header.Set("Content-Type", "application/json")
+	plan.Header.Set("Content-Encoding", "gzip")
+
+	return client.Do(plan)
 }
 
 func (c *Client) getAuthToken() (string, error) {

@@ -3,7 +3,7 @@ const app = express()
 const bodyParser = require('body-parser')
 const port = 3000
 
-app.use(bodyParser.json())
+app.use(bodyParser.json({type: 'application/json', inflate: true}))
 app.use(bodyParser.urlencoded({ extended: false }))
 
 app.get('/', (req, res) => {
@@ -19,8 +19,7 @@ app.get('/foo', (req, res) => {
 app.post('/kubernetes/resource', (req, res) => {
   console.log()
   console.log("processing 'kubernetes/resource' path - request body: ")
-  let data = req.body;
-  console.log(JSON.stringify(data))
+  console.log(JSON.stringify(req.body))
   res.send('post recieved')
 })
 

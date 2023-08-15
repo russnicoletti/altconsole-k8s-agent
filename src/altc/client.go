@@ -55,7 +55,7 @@ func (c *Client) Register(ctx context.Context) error {
 	return nil
 }
 
-func (c *Client) Send(ctx context.Context, clusterResources *ClusterResources) error {
+func (c *Client) Send(ctx context.Context, snapshotObject *SnapshotObject) error {
 
 	ctx, cancel := context.WithTimeout(ctx, sendTimeout)
 	defer cancel()
@@ -72,7 +72,7 @@ func (c *Client) Send(ctx context.Context, clusterResources *ClusterResources) e
 	err := wait.ExponentialBackoffWithContext(ctx, backoff, func() (done bool, err error) {
 		attempts++
 
-		execution, err := send(clusterResources)
+		execution, err := send(snapshotObject)
 		if err != nil {
 			fmt.Println(fmt.Sprintf("error sending resources on attempt %d: %s", attempts, err.Error()))
 			// Don't return the error from the conditionFunc, doing so will abort the retry.
@@ -91,8 +91,8 @@ func (c *Client) Send(ctx context.Context, clusterResources *ClusterResources) e
 	return err
 }
 
-func send(clusterResources *ClusterResources) (*request.Execution, error) {
-	fmt.Println(fmt.Sprintf("sending %d clusterResources items", len((*clusterResources).Data)))
+func send(snapshotObject *SnapshotObject) (*request.Execution, error) {
+	fmt.Println(fmt.Sprintf("sending %d snapshotObject items", len((*snapshotObject).Data)))
 	client := &httpx.Client{}
 	pr, pw := io.Pipe()
 
@@ -109,7 +109,7 @@ func send(clusterResources *ClusterResources) (*request.Execution, error) {
 	go func() {
 		gw := gzip.NewWriter(pw)
 
-		if err := json.NewEncoder(gw).Encode(clusterResources); err != nil {
+		if err := json.NewEncoder(gw).Encode(snapshotObject); err != nil {
 			fmt.Println("error encoding gzip data:", err)
 		}
 

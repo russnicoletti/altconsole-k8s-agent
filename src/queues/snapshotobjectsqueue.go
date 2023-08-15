@@ -8,21 +8,21 @@ import (
 	"k8s.io/client-go/util/workqueue"
 )
 
-const clusterResourceQName = "altc-clusterResourcesQ"
+const snapshotObjectsQName = "altc-snapshotObjectsQ"
 
-type ClusterResourcesQ struct {
+type SnapshotObjectsQ struct {
 	queue            workqueue.Interface
 	resourceObjectsQ ResourceObjectsQ
 	batchLimit       int
 	batchSize        int
 	clusterName      string
-	clusterResources *altc.ClusterResources
+	snapshotObjects  *altc.SnapshotObject
 }
 
-func NewClusterResourcesQ(clusterName string, batchLimit int, resourceObjectsQ ResourceObjectsQ) ClusterResourcesQ {
-	queue := workqueue.NewNamed(clusterResourceQName)
+func NewSnapshotObjectsQ(clusterName string, batchLimit int, resourceObjectsQ ResourceObjectsQ) SnapshotObjectsQ {
+	queue := workqueue.NewNamed(snapshotObjectsQName)
 
-	return ClusterResourcesQ{
+	return SnapshotObjectsQ{
 		queue:            queue,
 		resourceObjectsQ: resourceObjectsQ,
 		batchLimit:       batchLimit,
@@ -34,17 +34,17 @@ func NewClusterResourcesQ(clusterName string, batchLimit int, resourceObjectsQ R
 // Initialize
 //
 // This function should be called once for each snapshot. The function creates a snapshotId, which will be used
-// for all the clusterResources created from this queue -- until a subsequent `Initialize` call is made.
-func (q *ClusterResourcesQ) Initialize() k8stypes.UID {
+// for all the snapshotObjects created from this queue -- until a subsequent `Initialize` call is made.
+func (q *SnapshotObjectsQ) Initialize() k8stypes.UID {
 	return uuid.NewUUID()
 }
 
 // Populate
 //
-// Add items to the cluster resources queue, respecting
+// Add items to the snapshot objects queue, respecting
 // the batch size. If the queue is already populated,
 // does not add any additional resources.
-func (q *ClusterResourcesQ) Populate(snapshotId k8stypes.UID) {
+func (q *SnapshotObjectsQ) Populate(snapshotId k8stypes.UID) {
 	if q.queue.Len() > 0 {
 		fmt.Println(fmt.Sprintf("queue already populated, size: %d, not adding resource object items", q.queue.Len()))
 		return
@@ -55,54 +55,54 @@ func (q *ClusterResourcesQ) Populate(snapshotId k8stypes.UID) {
 	q.addResourcesWithBatchLimit(snapshotId)
 }
 
-func (q *ClusterResourcesQ) ShutDown() {
+func (q *SnapshotObjectsQ) ShutDown() {
 	q.queue.ShutDown()
 }
 
-func (q *ClusterResourcesQ) Len() int {
+func (q *SnapshotObjectsQ) Len() int {
 	return q.queue.Len()
 }
 
-func (q *ClusterResourcesQ) Add(item *altc.ClusterResources) {
+func (q *SnapshotObjectsQ) Add(item *altc.SnapshotObject) {
 	q.queue.Add(item)
 }
 
-func (q *ClusterResourcesQ) Get() (resources *altc.ClusterResources, shutdown bool) {
+func (q *SnapshotObjectsQ) Get() (resources *altc.SnapshotObject, shutdown bool) {
 	// TODO Consider making 'Populate' private and invoking the private 'populate' here
 	// (why does the caller need to invoke 'Populate' and then 'Get'?)
 	obj, shutdown := q.queue.Get()
-	returnItem := obj.(*altc.ClusterResources)
+	returnItem := obj.(*altc.SnapshotObject)
 	return returnItem, shutdown
 }
 
-func (q *ClusterResourcesQ) Done(item interface{}) {
+func (q *SnapshotObjectsQ) Done(item interface{}) {
 	q.queue.Done(item)
 }
 
-func (q *ClusterResourcesQ) addResourcesWithBatchLimit(snapshotId k8stypes.UID) {
+func (q *SnapshotObjectsQ) addResourcesWithBatchLimit(snapshotId k8stypes.UID) {
 	//fmt.Println("adding", q.batchSize-q.queue.Len(), "items...")
-	clusterResourceItems := make([]*altc.ClusterResourceItem, 0, 0)
+	clusterObjectItems := make([]*altc.ClusterObjectItem, 0, 0)
 	for i := q.queue.Len(); i < q.batchSize; i++ {
 
 		item, shutdown := q.resourceObjectsQ.Get()
 		//fmt.Println("adding resourceObject:", i+1)
 		if shutdown {
-			fmt.Println(fmt.Sprintf("%T shutdown", ClusterResourcesQ{}))
+			fmt.Println(fmt.Sprintf("%T shutdown", SnapshotObjectsQ{}))
 			return
 		}
 
-		clusterResourceItems = append(clusterResourceItems, item)
+		clusterObjectItems = append(clusterObjectItems, item)
 		q.resourceObjectsQ.Done(item)
 	}
-	clusterResources := &altc.ClusterResources{
+	snapshotObject := &altc.SnapshotObject{
 		ClusterName: q.clusterName,
 		SnapshotId:  snapshotId,
-		Data:        clusterResourceItems,
+		Data:        clusterObjectItems,
 	}
-	q.queue.Add(clusterResources)
+	q.queue.Add(snapshotObject)
 }
 
-func (q *ClusterResourcesQ) UpdateBatchSize() {
+func (q *SnapshotObjectsQ) UpdateBatchSize() {
 	if q.resourceObjectsQ.Len() > q.batchLimit {
 		q.batchSize = q.batchLimit
 	} else {
@@ -113,10 +113,10 @@ func (q *ClusterResourcesQ) UpdateBatchSize() {
 	}
 }
 
-func (q *ClusterResourcesQ) GetBatchSize() int {
+func (q *SnapshotObjectsQ) GetBatchSize() int {
 	return q.batchSize
 }
 
-func (q *ClusterResourcesQ) GetClusterName() string {
+func (q *SnapshotObjectsQ) GetClusterName() string {
 	return q.clusterName
 }

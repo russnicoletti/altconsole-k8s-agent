@@ -23,12 +23,12 @@ func NewResourceObjectQ() ResourceObjectsQ {
 
 func (q *ResourceObjectsQ) AddItem(action altc.Action, resourceObject altc.ResourceObject) error {
 
-	clusterResourceItem, err := altc.NewClusterResourceItem(action, resourceObject)
+	clusterObjectItem, err := altc.NewClusterObjectItem(action, resourceObject)
 	if err != nil {
-		return errors.New(fmt.Sprintf("ERROR: unable to create %T: %s", altc.ClusterResourceItem{}, err))
+		return errors.New(fmt.Sprintf("ERROR: unable to create %T: %s", altc.ClusterObjectItem{}, err))
 	}
 
-	q.queue.Add(clusterResourceItem)
+	q.queue.Add(clusterObjectItem)
 
 	return nil
 }
@@ -41,10 +41,10 @@ func (q *ResourceObjectsQ) Len() int {
 	return q.queue.Len()
 }
 
-func (q *ResourceObjectsQ) Get() (item *altc.ClusterResourceItem, shutdown bool) {
+func (q *ResourceObjectsQ) Get() (item *altc.ClusterObjectItem, shutdown bool) {
 
 	obj, shutdown := q.queue.Get()
-	returnItem := obj.(*altc.ClusterResourceItem)
+	returnItem := obj.(*altc.ClusterObjectItem)
 	return returnItem, shutdown
 }
 

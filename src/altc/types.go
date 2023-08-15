@@ -21,19 +21,19 @@ type ResourceObject interface {
 	metav1.Object
 }
 
-type ClusterResourceItem struct {
+type ClusterObjectItem struct {
 	Action  Action
 	Kind    string
 	Payload ResourceObject
 }
 
-type ClusterResources struct {
-	ClusterName string                 `json:"clusterName"`
-	SnapshotId  k8stypes.UID           `json:"snapshotId"`
-	Data        []*ClusterResourceItem `json:"data"`
+type SnapshotObject struct {
+	ClusterName string               `json:"clusterName"`
+	SnapshotId  k8stypes.UID         `json:"snapshotId"`
+	Data        []*ClusterObjectItem `json:"data"`
 }
 
-func NewClusterResourceItem(action Action, resourceObject ResourceObject) (*ClusterResourceItem, error) {
+func NewClusterObjectItem(action Action, resourceObject ResourceObject) (*ClusterObjectItem, error) {
 
 	kinds, _, err := scheme.Scheme.ObjectKinds(resourceObject)
 	if err != nil {
@@ -45,7 +45,7 @@ func NewClusterResourceItem(action Action, resourceObject ResourceObject) (*Clus
 		return nil, err
 	}
 
-	return &ClusterResourceItem{
+	return &ClusterObjectItem{
 		Action:  action,
 		Kind:    kinds[0].Kind,
 		Payload: resourceObject,

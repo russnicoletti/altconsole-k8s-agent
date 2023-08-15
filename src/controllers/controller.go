@@ -18,7 +18,7 @@ type Controller struct {
 	custominformers         []*custominformers.Informer
 	informerFactory         informers.SharedInformerFactory
 	resourceObjectsQ        altcqueues.ResourceObjectsQ
-	clusterResourcesQ       altcqueues.ClusterResourcesQ
+	snapshotObjectsQ        altcqueues.SnapshotObjectsQ
 	altcClient              *altc.Client
 	batchLimit              int
 	snapshotIntervalSeconds int
@@ -44,7 +44,7 @@ func New(clientset *kubernetes.Clientset, clusterName string) *Controller {
 
 	//goland:noinspection SpellCheckingInspection
 	resourceObjectsQ := altcqueues.NewResourceObjectQ()
-	clusterResourceQ := altcqueues.NewClusterResourcesQ(clusterName, batchLimit, resourceObjectsQ)
+	snapshotObjectsQ := altcqueues.NewSnapshotObjectsQ(clusterName, batchLimit, resourceObjectsQ)
 
 	custominformers := []*custominformers.Informer{
 		custominformers.New(f.Core().V1().ConfigMaps().Informer(), "ConfigMaps", resourceObjectsQ),
@@ -80,7 +80,7 @@ func New(clientset *kubernetes.Clientset, clusterName string) *Controller {
 		custominformers:         custominformers,
 		informerFactory:         f,
 		resourceObjectsQ:        resourceObjectsQ,
-		clusterResourcesQ:       clusterResourceQ,
+		snapshotObjectsQ:        snapshotObjectsQ,
 		altcClient:              altc.NewClient(),
 		batchLimit:              batchLimit,
 		snapshotIntervalSeconds: snapshotIntervalSeconds,
@@ -90,7 +90,7 @@ func New(clientset *kubernetes.Clientset, clusterName string) *Controller {
 func (c *Controller) Run(stopCh <-chan struct{}, ctx context.Context) {
 	fmt.Println("****")
 	fmt.Println("controller running")
-	fmt.Println(fmt.Sprintf("cluster name: %s", c.clusterResourcesQ.GetClusterName()))
+	fmt.Println(fmt.Sprintf("cluster name: %s", c.snapshotObjectsQ.GetClusterName()))
 	fmt.Println("starting informers...")
 	fmt.Println("batch limit:", c.batchLimit)
 	fmt.Println("snapshot interval seconds:", c.snapshotIntervalSeconds)
@@ -100,7 +100,7 @@ func (c *Controller) Run(stopCh <-chan struct{}, ctx context.Context) {
 	go func() {
 		<-ctx.Done()
 		c.resourceObjectsQ.ShutDown()
-		c.clusterResourcesQ.ShutDown()
+		c.snapshotObjectsQ.ShutDown()
 	}()
 
 	err := c.altcClient.Register(ctx)
@@ -126,25 +126,25 @@ func (c *Controller) processQueue(ctx context.Context) {
 		ready, stop := scheduleCollection(c.collectResources, time.Duration(c.snapshotIntervalSeconds)*time.Second, ctx.Done())
 		select {
 		case <-ready:
-			//fmt.Println("cluster resources ready to be collected from resource objects queue")
-			fmt.Println("total cluster resource objects:", c.resourceObjectsQ.Len())
-			snapshotId := c.clusterResourcesQ.Initialize()
+			//fmt.Println("cluster objects ready to be collected from resource objects queue")
+			fmt.Println("Number of cluster resource objects:", c.resourceObjectsQ.Len())
+			snapshotId := c.snapshotObjectsQ.Initialize()
 			fmt.Println("snapshotId:", snapshotId)
 
 			// Process all resources collected in the snapshot
 			for ok := true; ok; ok = c.resourceObjectsQ.Len() != 0 {
-				//fmt.Println("populating cluster resources queue")
-				c.clusterResourcesQ.Populate(snapshotId)
-				clusterResources, shutdown := c.clusterResourcesQ.Get()
+				//fmt.Println("populating snapshotObjects queue")
+				c.snapshotObjectsQ.Populate(snapshotId)
+				snapshotObject, shutdown := c.snapshotObjectsQ.Get()
 
 				if shutdown {
-					fmt.Println(fmt.Sprintf("%T shutdown", altcqueues.ClusterResourcesQ{}))
+					fmt.Println(fmt.Sprintf("%T shutdown", altcqueues.SnapshotObjectsQ{}))
 				}
-				itemsToSend := len(clusterResources.Data)
-				//fmt.Println("items from clusterResources to send:", itemsToSend)
-				err := c.altcClient.Send(ctx, clusterResources)
+				itemsToSend := len(snapshotObject.Data)
+				//fmt.Println("items from snapshotObject to send:", itemsToSend)
+				err := c.altcClient.Send(ctx, snapshotObject)
 
-				// Ack the cluster resources queue item regardless of whether the item
+				// Ack the snapshotObjects queue item regardless of whether the item
 				// was successfully sent to the server.
 				//
 				//  If the item was sent to the server:
@@ -157,11 +157,11 @@ func (c *Controller) processQueue(ctx context.Context) {
 				//   is still "processing". Therefore, the item needs to be acked before being
 				//   re-added.
 				//
-				c.clusterResourcesQ.Done(clusterResources)
+				c.snapshotObjectsQ.Done(snapshotObject)
 
 				if err != nil {
 					fmt.Println("ERROR: error sending resources to server:", err)
-					c.clusterResourcesQ.Add(clusterResources)
+					c.snapshotObjectsQ.Add(snapshotObject)
 					continue
 				}
 				fmt.Println(fmt.Sprintf("after sending %d items, resourceObjectsQ len: %d",
@@ -199,24 +199,24 @@ func (c *Controller) waitForInformersToSync(ctx context.Context) error {
 func (c *Controller) collectResources() {
 	// Shouldn't be collecting resources until all previously collected
 	// resources have been sent to the server
-	if c.clusterResourcesQ.Len() != 0 {
-		fmt.Println("clusterResourcesQ is not empty, not adding additional resources")
+	if c.snapshotObjectsQ.Len() != 0 {
+		fmt.Println("snapshotObjectsQ is not empty, not adding additional resources")
 		return
 	}
 
-	fmt.Println("collecting resources at", time.Now())
+	fmt.Println("collecting snapshot objects at", time.Now())
 	for _, informer := range c.custominformers {
 		resourcesList := informer.Informer.GetStore().List()
-		fmt.Println(fmt.Sprintf("collecting %d resources from %s informer", len(resourcesList), informer.Name))
+		fmt.Println(fmt.Sprintf("collecting %d objects from %s informer", len(resourcesList), informer.Name))
 		for _, item := range resourcesList {
 			informer.Handler.OnAdd(item)
 		}
 	}
-	fmt.Println("finished collecting resources at", time.Now())
+	fmt.Println("finished collecting objects at", time.Now())
 }
 
 func scheduleCollection(collect func(), delay time.Duration, done <-chan struct{}) (<-chan bool, <-chan bool) {
-	fmt.Println("scheduling resource collection for", time.Now().Add(delay))
+	fmt.Println("scheduling snapshot object collection for", time.Now().Add(delay))
 
 	ready := make(chan bool)
 	stop := make(chan bool)

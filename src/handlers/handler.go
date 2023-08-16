@@ -2,14 +2,14 @@ package handlers
 
 import (
 	"altc-agent/altc"
-	altcqueues "altc-agent/queues"
+	"altc-agent/collections"
 	"fmt"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
 )
 
 type handler struct {
-	queue altcqueues.ResourceObjectsQ
+	resourceObjects *collections.ResourceObjects
 }
 
 type Handler interface {
@@ -20,9 +20,9 @@ type HasName interface {
 	Name() string
 }
 
-func NewHandler(queue altcqueues.ResourceObjectsQ) Handler {
+func NewHandler(resourceObjects *collections.ResourceObjects) Handler {
 	return &handler{
-		queue: queue,
+		resourceObjects: resourceObjects,
 	}
 }
 
@@ -51,7 +51,7 @@ func (h *handler) handle(action altc.Action, obj interface{}) {
 		metadata.SetManagedFields(nil)
 	}
 
-	err := h.queue.AddItem(action, resourceObject)
+	err := h.resourceObjects.AddItem(action, resourceObject)
 	if err != nil {
 		fmt.Println(err.Error())
 	}

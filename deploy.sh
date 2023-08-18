@@ -1,8 +1,9 @@
 #!/bin/sh
 ALTC_CONFIG_MAP_NAME="altc-agent"
+ALTC_CONFIG_MAP_TEMPLATE_YAML="deployment_files/altc-agent-configmap-template.yaml"
+ALTC_CONFIG_MAP_YAML="altc-agent-configmap.yaml"
 ALTC_SECRET_NAME="altc-agent"
-ALTC_CONFIG_MAP_TEMPLATE_FILE="deployment_files/altc-agent-configmap-template.yaml"
-ALTC_CONFIG_MAP_FILE="altc-agent-configmap.yaml"
+ALTC_SECRET_YAML="deployment_files/altc-agent-secret.yaml"
 
 kubectl get configmap $ALTC_CONFIG_MAP_NAME > /dev/null 2>&1
 if [ "$?" -eq "0" ]; then
@@ -11,13 +12,13 @@ else
   echo "ConfigMap '${ALTC_CONFIG_MAP_NAME}' does not exist. Creating ..."
   # Update cluster name in configmap
   CLUSTER_NAME=`kubectl config view --minify -o jsonpath='{.clusters[].name}'`
-  sed "s/REPLACE_WITH_CLUSTER_NAME/\"${CLUSTER_NAME}\"/g" ${ALTC_CONFIG_MAP_TEMPLATE_FILE} > ${ALTC_CONFIG_MAP_FILE}
+  sed "s/REPLACE_WITH_CLUSTER_NAME/\"${CLUSTER_NAME}\"/g" ${ALTC_CONFIG_MAP_TEMPLATE_YAML} > ${ALTC_CONFIG_MAP_YAML}
 
   # Update batch limit and snapshot interval in config map template
   # TODO: allow batch limit and snapshot interval to be specified on command line
-  sed -I sav "s/REPLACE_WITH_BATCH_LIMIT/\"10\"/g" ${ALTC_CONFIG_MAP_FILE}
-  sed -I sav "s/REPLACE_WITH_SNAPSHOT_INTERVAL_SECONDS/\"30\"/g" ${ALTC_CONFIG_MAP_FILE}
-  kubectl apply -f ${ALTC_CONFIG_MAP_FILE}
+  sed -I sav "s/REPLACE_WITH_BATCH_LIMIT/\"10\"/g" ${ALTC_CONFIG_MAP_YAML}
+  sed -I sav "s/REPLACE_WITH_SNAPSHOT_INTERVAL_SECONDS/\"30\"/g" ${ALTC_CONFIG_MAP_YAML}
+  kubectl apply -f ${ALTC_CONFIG_MAP_YAML}
 fi
 
 echo "${ALTC_CONFIG_MAP_NAME} ConfigMap contents:"
@@ -28,7 +29,7 @@ if [ "$?" -eq "0" ]; then
   echo "secret '${ALTC_SECRET_NAME}' already exists"
 else
   echo "secret '${ALTC_SECRET_NAME}' does not exist. Creating ..."
-  kubectl apply -f deployment_files/altc-agent-secret.yaml
+  kubectl apply -f $ALTC_SECRET_YAML
 fi
 
 echo ""

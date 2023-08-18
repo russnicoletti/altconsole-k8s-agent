@@ -30,13 +30,14 @@ type AuthPayload struct {
 }
 
 const (
-	sendTimeout         = 30 * time.Second
-	authUriEnv          = "AUTH_URI"
-	authClientIdEnv     = "AUTH_CLIENT_ID"
-	authSecretEnv       = "AUTH_SECRET"
-	authPublicKeySetEnv = "AUTH_PUBLIC_KEY_SET"
-	authAudienceEnv     = "AUTH_AUDIENCE"
-	authIssuerEnv       = "AUTH_ISSUER"
+	_sendTimeout         = 30 * time.Second
+	_authUriEnv          = "AUTH_URI"
+	_authClientIdEnv     = "AUTH_CLIENT_ID"
+	_authSecretEnv       = "AUTH_SECRET"
+	_authPublicKeySetEnv = "AUTH_PUBLIC_KEY_SET"
+	_authAudienceEnv     = "AUTH_AUDIENCE"
+	_authIssuerEnv       = "AUTH_ISSUER"
+	_serverUrlEnv        = "SERVER_URL"
 )
 
 func NewClient() *Client {
@@ -57,7 +58,7 @@ func (c *Client) Register(ctx context.Context) error {
 
 func (c *Client) Send(ctx context.Context, snapshotObject *SnapshotObject) error {
 
-	ctx, cancel := context.WithTimeout(ctx, sendTimeout)
+	ctx, cancel := context.WithTimeout(ctx, _sendTimeout)
 	defer cancel()
 	maxSteps := 4
 
@@ -123,7 +124,8 @@ func send(snapshotObject *SnapshotObject) (*request.Execution, error) {
 		}()
 	}()
 
-	plan, err := request.NewPlan("POST", "http://altc-nodeserver:8080/kubernetes/resource", pr)
+	url := os.Getenv(_serverUrlEnv)
+	plan, err := request.NewPlan("POST", url, pr)
 	if err != nil {
 		return nil, err
 	}
@@ -135,13 +137,13 @@ func send(snapshotObject *SnapshotObject) (*request.Execution, error) {
 
 func (c *Client) getAuthToken() (string, error) {
 
-	authUri := os.Getenv(authUriEnv)
-	authClientId := os.Getenv(authClientIdEnv)
-	authSecret := os.Getenv(authSecretEnv)
-	authPublicKeySetBytes, _ := base64.StdEncoding.DecodeString(os.Getenv(authPublicKeySetEnv))
-	authIssuerBytes, _ := base64.StdEncoding.DecodeString(os.Getenv(authIssuerEnv))
+	authUri := os.Getenv(_authUriEnv)
+	authClientId := os.Getenv(_authClientIdEnv)
+	authSecret := os.Getenv(_authSecretEnv)
+	authPublicKeySetBytes, _ := base64.StdEncoding.DecodeString(os.Getenv(_authPublicKeySetEnv))
+	authIssuerBytes, _ := base64.StdEncoding.DecodeString(os.Getenv(_authIssuerEnv))
 	authIssuer := string(authIssuerBytes)
-	authAudienceBytes, _ := base64.StdEncoding.DecodeString(os.Getenv(authAudienceEnv))
+	authAudienceBytes, _ := base64.StdEncoding.DecodeString(os.Getenv(_authAudienceEnv))
 	authAudience := string(authAudienceBytes)
 
 	payloadObj := AuthPayload{

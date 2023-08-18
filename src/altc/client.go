@@ -31,7 +31,7 @@ type AuthPayload struct {
 
 const (
 	_sendTimeout         = 30 * time.Second
-	_authUriEnv          = "AUTH_URI"
+	_authUrlEnv          = "AUTH_URL"
 	_authClientIdEnv     = "AUTH_CLIENT_ID"
 	_authSecretEnv       = "AUTH_SECRET"
 	_authPublicKeySetEnv = "AUTH_PUBLIC_KEY_SET"
@@ -137,7 +137,7 @@ func send(snapshotObject *SnapshotObject) (*request.Execution, error) {
 
 func (c *Client) getAuthToken() (string, error) {
 
-	authUri := os.Getenv(_authUriEnv)
+	authUrl := os.Getenv(_authUrlEnv)
 	authClientId := os.Getenv(_authClientIdEnv)
 	authSecret := os.Getenv(_authSecretEnv)
 	authPublicKeySetBytes, _ := base64.StdEncoding.DecodeString(os.Getenv(_authPublicKeySetEnv))
@@ -160,7 +160,7 @@ func (c *Client) getAuthToken() (string, error) {
 
 	fmt.Println("Authorizing...")
 	payload := strings.NewReader(string(payloadBytes))
-	req, err := http.NewRequest("POST", authUri, payload)
+	req, err := http.NewRequest("POST", authUrl, payload)
 	if err != nil {
 		return "", errors.New(fmt.Sprintf("error creating request: %s", err))
 	}

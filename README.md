@@ -39,7 +39,7 @@ On MacOS:
 `./make.sh`  
 `./deploy.sh`
 
-There should now be two pods in the cluster. For example:
+There should now be two pods in the cluster. For example:  
 `kubectl get pods` 
    
 `NAME                          READY   STATUS    RESTARTS   AGE`  
